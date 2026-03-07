@@ -1,0 +1,14 @@
+{
+  "name": "cangel-games-erp",
+  "version": "1.0.0",
+  "description": "ERP para gestión de ventas e inventario de Cangel Games",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [],
+  "author": "Cangel Games",
+  "license": "ISC",
+  "dependencies": {}
+}
