@@ -91,12 +91,12 @@ function doLogin() {
   }
 }
 
-function recuperarPassword() {
+async function recuperarPassword() {
   const email = document.getElementById('loginName').value.trim().toLowerCase();
   if (email === 'cangel.games.soporte@gmail.com') {
-    alert("Se ha enviado un correo de recuperación a cangel.games.soporte@gmail.com con instrucciones.");
+    await showPremiumAlert("Acceso", "Se ha enviado un correo de recuperación a cangel.games.soporte@gmail.com con instrucciones.", "info");
   } else {
-    alert("Dile a un administrador que restablezca tu contraseña en el módulo de Bitácora.");
+    await showPremiumAlert("Acceso", "Dile a un administrador que restablezca tu contraseña en el módulo de Bitácora.", "info");
   }
 }
 
@@ -528,8 +528,11 @@ function renderGameCard(data, size = 'medium') {
 
 
 
-function addToCatalogFromAnalysis() {
-  if (AppState.analysis.length === 0) return alert('No hay datos para agregar');
+async function addToCatalogFromAnalysis() {
+  if (AppState.analysis.length === 0) {
+    await showPremiumAlert('Catálogo', 'No hay datos para agregar', 'info');
+    return;
+  }
 
   const tbody = document.getElementById('tableBody');
   const rows = tbody.querySelectorAll('tr');
@@ -569,7 +572,7 @@ function addToCatalogFromAnalysis() {
   renderAnalysisTable();
   renderCatalog();
   saveLocal();
-  alert('Juegos agregados/actualizados en el catálogo correctamente');
+  await showPremiumAlert("Catálogo", "Juegos agregados/actualizados en el catálogo correctamente", "success");
 }
 
 function addEmptyRow() {
@@ -691,8 +694,8 @@ function renderAnalysisTable() {
   });
 }
 
-function editAnalysisImage(id) {
-  const url = prompt('Pega la URL de la imagen:');
+async function editAnalysisImage(id) {
+  const url = await showPremiumPrompt('Imagen del Juego', 'Pega el enlace de la imagen a continuación:', 'URL de la Imagen:');
   if (url) {
     const item = AppState.analysis.find(a => a.id === id);
     if (item) {
@@ -823,11 +826,15 @@ function renderCatalog() {
 }
 
 function removeFromCatalog(id) {
-  if (confirm('¿Estás seguro de eliminar este juego del catálogo?')) {
-    AppState.catalog = AppState.catalog.filter(g => g.id !== id);
-    renderCatalog();
-    saveLocal();
-  }
+  showDeleteConfirmModal(
+    '¿Estás seguro de eliminar este juego del catálogo?',
+    () => {
+      AppState.catalog = AppState.catalog.filter(g => g.id !== id);
+      renderCatalog();
+      saveLocal();
+      if (typeof showToast === 'function') showToast('Juego eliminado del catálogo', 'info');
+    }
+  );
 }
 
 function addToCartFromCard(id) {
@@ -887,9 +894,12 @@ function closeCheckout() {
   document.getElementById('checkoutOverlay').classList.remove('show');
 }
 
-function confirmCheckout() {
+async function confirmCheckout() {
   const cliente = document.getElementById('ckNombre').value;
-  if (!cliente) return alert('Nombre requerido');
+  if (!cliente) {
+    await showPremiumAlert('Error', 'Nombre requerido', 'error');
+    return;
+  }
 
   const time = getColombiaTime();
   AppState.cart.forEach(item => {
@@ -916,7 +926,7 @@ function confirmCheckout() {
   closeCheckout();
   toggleCart();
   saveLocal();
-  alert('¡Compra exitosa!');
+  await showPremiumAlert("Venta Exitosa", "¡La compra se ha registrado correctamente!", "success");
 }
 
 /* ═══════════════════════════════════════ */
@@ -1121,7 +1131,20 @@ function renderCuentasPSN() {
         <div>${c.password || 'N/A'}</div>
         <div style="font-size:0.65rem; color:var(--text-muted); margin-top:2px;">Host: ${c.password_hosting || '-'}</div>
       </td>
-      <td style="font-family: monospace; color: var(--accent-purple); font-weight: 700;">${c.cod_2_pasos || c.codigo2fa || 'N/A'}</td>
+      <td style="text-align: center;">
+        ${(() => {
+        const codesRaw = c.cod_2_pasos || c.codigo2fa || '';
+        const codes = codesRaw.split('\n').map(x => x.trim()).filter(x => x.length > 0);
+        const count = codes.length;
+        return `
+            <div class="badge-2fa ${count === 0 ? 'zero' : ''}" 
+                 onclick="${count > 0 ? `open2FAModal('${c.id}', '${c._itemType}')` : ''}"
+                 title="${count > 0 ? 'Ver códigos' : 'Sin códigos'}">
+              ${count}
+            </div>
+          `;
+      })()}
+      </td>
       <td>${c.fechaCuenta || c.fecha || 'N/A'}</td>
       <td>
         <select class="premium-table-select" onchange="updateCuentaPsnStatus('${c.id}', this.value)">
@@ -1728,6 +1751,99 @@ function executeDeleteAction() {
   }
   closeDeleteConfirmModal();
 }
+
+// --- ALERT PREMIUM ---
+let alertResolve = null;
+
+function showPremiumAlert(title, message, type = 'success') {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('modalAlertOverlay');
+    const titleEl = document.getElementById('alertTitle');
+    const msgEl = document.getElementById('alertMessage');
+    const iconContainer = document.getElementById('alertIconContainer');
+
+    if (overlay && titleEl && msgEl && iconContainer) {
+      titleEl.innerText = title;
+      msgEl.innerText = message;
+
+      let iconHtml = '';
+      if (type === 'success') {
+        iconHtml = `<div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(0, 184, 148, 0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto; border: 1px solid rgba(0, 184, 148, 0.3);"><i data-lucide="check-circle" style="color: #00b894; width: 30px; height: 30px;"></i></div>`;
+      } else if (type === 'error') {
+        iconHtml = `<div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(255, 71, 87, 0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto; border: 1px solid rgba(255, 71, 87, 0.3);"><i data-lucide="x-circle" style="color: #ff4757; width: 30px; height: 30px;"></i></div>`;
+      } else {
+        iconHtml = `<div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(0, 201, 255, 0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto; border: 1px solid rgba(0, 201, 255, 0.3);"><i data-lucide="info" style="color: #00c9ff; width: 30px; height: 30px;"></i></div>`;
+      }
+
+      iconContainer.innerHTML = iconHtml;
+      alertResolve = resolve;
+      overlay.classList.add('show');
+      if (window.lucide) window.lucide.createIcons();
+    }
+  });
+}
+
+function closePremiumAlert() {
+  const overlay = document.getElementById('modalAlertOverlay');
+  if (overlay) overlay.classList.remove('show');
+  if (alertResolve) {
+    alertResolve();
+    alertResolve = null;
+  }
+}
+
+// --- PROMPT PREMIUM ---
+let promptResolve = null;
+
+function showPremiumPrompt(title, subtitle, label, defaultValue = '', inputType = 'text') {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('modalPromptOverlay');
+    const titleEl = document.getElementById('promptTitle');
+    const subtitleEl = document.getElementById('promptSubtitle');
+    const labelEl = document.getElementById('promptLabel');
+    const inputEl = document.getElementById('promptInput');
+
+    if (overlay && titleEl && subtitleEl && labelEl && inputEl) {
+      titleEl.innerText = title;
+      subtitleEl.innerText = subtitle;
+      labelEl.innerText = label;
+      inputEl.value = defaultValue;
+      inputEl.type = inputType;
+
+      promptResolve = resolve;
+      overlay.classList.add('show');
+
+      if (window.lucide) window.lucide.createIcons();
+
+      setTimeout(() => {
+        inputEl.focus();
+        inputEl.select();
+      }, 100);
+
+      const handleEnter = (e) => {
+        if (e.key === 'Enter') {
+          inputEl.removeEventListener('keydown', handleEnter);
+          closePremiumPrompt(true);
+        }
+      };
+      inputEl.addEventListener('keydown', handleEnter);
+    }
+  });
+}
+
+function closePremiumPrompt(isAccept) {
+  const overlay = document.getElementById('modalPromptOverlay');
+  const inputEl = document.getElementById('promptInput');
+  const value = inputEl ? inputEl.value : '';
+
+  if (overlay) overlay.classList.remove('show');
+
+  if (promptResolve) {
+    promptResolve(isAccept ? value : null);
+    promptResolve = null;
+  }
+}
+
 
 
 // --- AUTOCOMPLETADO DE CLIENTE POR CÉDULA ---
@@ -2558,16 +2674,46 @@ function processPDF(file) {
   }, 1500);
 }
 
-function addExpense(type) {
-  const m = prompt('Monto:');
-  if (m) {
+async function addExpense(type) {
+  const defaultDesc = type === 'operativo' ? 'Gasto operativo' : 'Gasto ocasional';
+  const desc = await showPremiumPrompt(
+    type === 'operativo' ? 'Añadir Gasto Operativo' : 'Añadir Gasto Ocasional',
+    'Ingresa una descripción clara para este gasto:',
+    'Descripción:',
+    defaultDesc
+  );
+
+  if (desc === null) return; // Cancelado
+
+  const m = await showPremiumPrompt(
+    'Monto del Gasto',
+    'Ingresa el valor total en pesos colombianos:',
+    'Monto ($):',
+    '',
+    'number'
+  );
+
+  if (m !== null) {
     const monto = parseFloat(m);
-    AppState.expenses.push({ id: Date.now(), type, monto: monto, desc: 'Gasto ' + type, fecha: getColombiaTime().date });
+    if (isNaN(monto)) {
+      await showPremiumAlert("Error", "Por favor, ingrese un monto válido.", "error");
+      return;
+    }
+
+    AppState.expenses.push({
+      id: Date.now(),
+      type,
+      monto: monto,
+      desc: desc || defaultDesc,
+      fecha: getColombiaTime().date
+    });
+
     if (typeof logEvent === 'function') {
-      logEvent('Balance: Gasto Añadido', `Se agregó un gasto ${type} por valor de $${monto}`);
+      logEvent('Balance: Gasto Añadido', `Se agregó un gasto ${type} ("${desc}") por valor de $${monto}`);
     }
     updateBalance();
     saveLocal();
+    renderExpenses(); // Asegurar que se renderice inmediatamente
   }
 }
 
@@ -2607,29 +2753,44 @@ function eliminarGasto(id) {
   const index = AppState.expenses.findIndex(g => g.id === id);
   if (index !== -1) {
     const gasto = AppState.expenses[index];
-    if (confirm(`¿Estás seguro de eliminar el gasto: "${gasto.desc}" por $${gasto.monto}?`)) {
-      AppState.expenses.splice(index, 1);
-      logEvent('Balance: Gasto Eliminado', `ID: ${id} | Desc: ${gasto.desc} | Monto: $${gasto.monto}`);
-      renderExpenses();
-      updateDashboard();
-      if (typeof showToast === 'function') showToast('Gasto eliminado correctamente', 'info');
-    }
+    showDeleteConfirmModal(
+      `¿Estás seguro de eliminar el gasto: "${gasto.desc}" por $${gasto.monto}?`,
+      () => {
+        AppState.expenses.splice(index, 1);
+        logEvent('Balance: Gasto Eliminado', `ID: ${id} | Desc: ${gasto.desc} | Monto: $${gasto.monto}`);
+        renderExpenses();
+        updateBalance();
+        saveLocal();
+        if (typeof showToast === 'function') showToast('Gasto eliminado correctamente', 'info');
+      }
+    );
   }
 }
 
-function prepararEdicionGasto(id) {
+async function prepararEdicionGasto(id) {
   const gasto = AppState.expenses.find(g => g.id === id);
   if (!gasto) return;
 
-  const nuevaDesc = prompt("Editar descripción del gasto:", gasto.desc);
+  const nuevaDesc = await showPremiumPrompt(
+    'Editar Gasto',
+    'Modifica la descripción según sea necesario:',
+    'Descripción:',
+    gasto.desc
+  );
   if (nuevaDesc === null) return;
 
-  const nuevoMonto = prompt("Editar monto del gasto:", gasto.monto);
+  const nuevoMonto = await showPremiumPrompt(
+    'Editar Monto',
+    'Ingresa el nuevo valor del gasto:',
+    'Monto ($):',
+    gasto.monto,
+    'number'
+  );
   if (nuevoMonto === null) return;
 
   const montoVal = parseFloat(nuevoMonto);
   if (isNaN(montoVal)) {
-    alert("Por favor ingresa un monto válido.");
+    await showPremiumAlert("Error", "Por favor ingresa un monto válido.", "error");
     return;
   }
 
@@ -2642,7 +2803,8 @@ function prepararEdicionGasto(id) {
   logEvent('Balance: Gasto Modificado', `ID: ${id} | De: [${descVieja} | $${montoViejo}] a [${nuevaDesc} | $${montoVal}]`);
 
   renderExpenses();
-  updateDashboard();
+  updateBalance();
+  saveLocal();
   if (typeof showToast === 'function') showToast('Gasto actualizado correctamente');
 }
 
@@ -2677,29 +2839,27 @@ function saveLocal() {
 // NOTA: Esta funcionalidad de limpieza es TEMPORAL para fase de desarrollo/pruebas.
 // No se incluirá en la versión final de producción.
 function confirmarLimpiezaDatos() {
-  const confirmacion = confirm("⚠️ ADVERTENCIA CRÍTICA: ¿Estás seguro de que quieres limpiar todos los datos de prueba?\n\nSe borrarán permanentemente:\n- Ventas registradas\n- Inventario completo\n- Gastos y Balance\n- Historial de eventos\n- Análisis de precios\n\nEsta acción NO se puede deshacer.");
+  showDeleteConfirmModal(
+    "⚠️ ADVERTENCIA CRÍTICA: ¿Estás seguro de que quieres limpiar todos los datos de prueba?\n\nSe borrarán permanentemente ventas, inventario, gastos y análisis. Esta acción NO se puede deshacer.",
+    async () => {
+      console.log('--- Iniciando limpieza profunda de datos ---');
+      AppState.sales = [];
+      AppState.inventory = [];
+      AppState.inventoryGames = [];
+      AppState.inventoryCodes = [];
+      AppState.paquetes = [];
+      AppState.membresias = [];
+      AppState.expenses = [];
+      AppState.auditLog = [];
+      AppState.analysis = [];
 
-  if (confirmacion) {
-    console.log('--- Iniciando limpieza profunda de datos ---');
-    AppState.sales = [];
-    AppState.inventory = [];
-    AppState.inventoryGames = [];
-    AppState.inventoryCodes = [];
-    AppState.paquetes = [];
-    AppState.membresias = [];
-    AppState.expenses = [];
-    AppState.auditLog = [];
-    AppState.analysis = [];
+      logEvent('LIMPIEZA TOTAL', 'Se ha realizado una limpieza completa de los datos de prueba del sistema.');
+      saveLocal();
 
-    // Registrar quién hizo la limpieza como primer evento del nuevo log
-    logEvent('LIMPIEZA TOTAL', 'Se ha realizado una limpieza completa de los datos de prueba del sistema.');
-
-    // saveLocal ya se llama dentro de logEvent, pero por seguridad:
-    saveLocal();
-
-    alert("Limpieza completada. La página se recargará para aplicar los cambios.");
-    location.reload();
-  }
+      await showPremiumAlert("Limpieza", "Limpieza completada. La página se recargará para aplicar los cambios.", "success");
+      location.reload();
+    }
+  );
 }
 
 function loadLocal() {
@@ -3445,7 +3605,7 @@ function saveGameInventory() {
       };
 
       if (typeof logEvent === 'function') {
-        logEvent('Inventario Juegos: Edición', `ID: ${game.id} | Juego: ${nombre}`);
+        logEvent('Inventario Juegos: Edición', `ID: ${editId} | Juego: ${nombre}`);
       }
     }
   } else {
@@ -3475,7 +3635,7 @@ function saveGameInventory() {
     AppState.inventoryGames.push(newJuego);
 
     if (typeof logEvent === 'function') {
-      logEvent('Inventario Juegos: Nuevo', `ID: ${nuevoJuego.id} | Juego: ${nombre} (${tipo_version})`);
+      logEvent('Inventario Juegos: Nuevo', `ID: ${newJuego.id} | Juego: ${nombre} (${tipo_version})`);
     }
   }
 
@@ -6127,4 +6287,102 @@ function toggleEstadoUsuario(email) {
     renderGestionUsuarios();
     logEvent(user.activo ? 'Reactivación Usuario' : 'Desactivación Usuario', `Usuario ${email} fue ${user.activo ? 'reactivado' : 'desactivado'}`);
   }
+}
+
+/* ═══════════════════════════════════════ */
+/* 2FA CODES MANAGEMENT SYSTEM             */
+/* ═══════════════════════════════════════ */
+
+function open2FAModal(itemId, itemType) {
+  const modal = document.getElementById('modal2FAOverlay');
+  if (!modal) return;
+
+  const item = findInventoryItemById(itemId, itemType);
+  if (!item) return;
+
+  modal.dataset.itemId = itemId;
+  modal.dataset.itemType = itemType;
+  modal.classList.add('show');
+
+  render2FACodesList(item, itemId, itemType);
+}
+
+function findInventoryItemById(id, type) {
+  if (type === 'game') return AppState.inventoryGames.find(g => String(g.id) === String(id));
+  if (type === 'paquete') return AppState.paquetes.find(p => String(p.id) === String(id));
+  if (type === 'membresia') return AppState.membresias.find(m => String(m.id) === String(id));
+  return null;
+}
+
+function render2FACodesList(item, itemId, itemType) {
+  const listado = document.getElementById('listadoCodigos2FA');
+  if (!listado) return;
+
+  const codesRaw = item.cod_2_pasos || item.codigo2fa || '';
+  const codes = codesRaw.split('\n').map(x => x.trim()).filter(x => x.length > 0);
+
+  if (codes.length === 0) {
+    listado.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:20px;">No hay códigos disponibles.</p>';
+    closeModal2FA();
+    return;
+  }
+
+  listado.innerHTML = '';
+  codes.forEach((code, index) => {
+    const div = document.createElement('div');
+    div.className = 'code-2fa-item';
+    div.innerHTML = `
+      <div style="display:flex; flex-direction:column;">
+        <span class="code-2fa-label">Código de verificación #${index + 1}</span>
+        <span class="code-2fa-value">${code}</span>
+      </div>
+      <button class="btn-utilizar" onclick="use2FACode('${itemId}', '${itemType}', ${index})">Utilizar</button>
+    `;
+    listado.appendChild(div);
+  });
+}
+
+async function use2FACode(itemId, itemType, codeIndex) {
+  const item = findInventoryItemById(itemId, itemType);
+  if (!item) return;
+
+  const codesRaw = item.cod_2_pasos || item.codigo2fa || '';
+  const codes = codesRaw.split('\n').map(x => x.trim()).filter(x => x.length > 0);
+
+  if (codeIndex < 0 || codeIndex >= codes.length) return;
+
+  const codeToUse = codes[codeIndex];
+
+  // Copiar al portapapeles
+  try {
+    await navigator.clipboard.writeText(codeToUse);
+    if (typeof showToast === 'function') showToast('Código copiado al portapapeles', 'success');
+  } catch (err) {
+    console.error('Error al copiar:', err);
+  }
+
+  // Eliminar código
+  codes.splice(codeIndex, 1);
+  const newCodesRaw = codes.join('\n');
+
+  item.codigo2fa = newCodesRaw;
+  // Por compatibilidad si existiera la otra
+  if (item.cod_2_pasos !== undefined) item.cod_2_pasos = newCodesRaw;
+
+  // Persistir y refrescar
+  logEvent('2FA: Código Utilizado', `Item ID: ${itemId} | Tipo: ${itemType} | Código: ${codeToUse}`);
+  saveLocal();
+  renderCuentasPSN();
+
+  // Actualizar lista en el modal o cerrar si ya no hay
+  if (codes.length > 0) {
+    render2FACodesList(item, itemId, itemType);
+  } else {
+    closeModal2FA();
+  }
+}
+
+function closeModal2FA() {
+  const modal = document.getElementById('modal2FAOverlay');
+  if (modal) modal.classList.remove('show');
 }

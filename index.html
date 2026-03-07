@@ -173,7 +173,7 @@
       background: transparent !important;
       border: none !important;
       color: #fff !important;
-      padding: 10px 5px !important;
+      padding: 10px 5px 10px 40px !important;
       outline: none !important;
       width: 100%;
       font-size: 0.9rem;
@@ -681,16 +681,7 @@
         <!-- ══════════════════════════════════════ -->
         <section class="page-content" id="pageDashboard">
           <div class="dashboard-toolbar">
-            <div class="currency-converter card-glass">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="1" x2="12" y2="23"></line>
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-              </svg>
-              <label for="exchangeRate">USD → COP:</label>
-              <input type="number" id="exchangeRate" value="4200" min="1" step="1" class="converter-input"
-                oninput="updateGlobalTRM(this.value)">
-            </div>
+
             <div class="filter-buttons">
               <button class="filter-btn active" data-filter="semana">Semana</button>
               <button class="filter-btn" data-filter="mes">Mes</button>
@@ -1974,7 +1965,7 @@
             </div>
           </div>
 
-          <div class="tab-border-line" style="margin: 15px 0;"></div>
+
 
           <!-- TAB INTERNO 1: Visor de Eventos -->
           <div id="bitacoraVisorEventos">
@@ -2520,7 +2511,8 @@
           </div>
           <div class="form-group">
             <label>Cod 2 Pasos</label>
-            <input type="text" id="invJuego2fa" class="form-input" placeholder="123 456">
+            <textarea id="invJuego2fa" class="form-input inventory-textarea"
+              placeholder="4bK7Wv&#10;ynUTQA&#10;TGC3P7"></textarea>
           </div>
           <div class="form-group">
             <label>Fecha de Compra</label>
@@ -2651,7 +2643,8 @@
           </div>
           <div class="form-group">
             <label>Cod 2 Pasos</label>
-            <input type="text" id="invPaquete2fa" class="form-input" placeholder="123 456">
+            <textarea id="invPaquete2fa" class="form-input inventory-textarea"
+              placeholder="4bK7Wv&#10;ynUTQA&#10;TGC3P7"></textarea>
           </div>
           <div class="form-group">
             <label>Fecha Cuenta (Info)</label>
@@ -2745,7 +2738,8 @@
           </div>
           <div class="form-group">
             <label>Cod 2 Pasos</label>
-            <input type="text" id="invMembresia2fa" class="form-input" placeholder="123 456">
+            <textarea id="invMembresia2fa" class="form-input inventory-textarea"
+              placeholder="4bK7Wv&#10;ynUTQA&#10;TGC3P7"></textarea>
           </div>
           <div class="form-group">
             <label>Fecha Cuenta (Info)</label>
@@ -2962,6 +2956,53 @@
     </div>
   </div>
 
+  <!-- ══════════════════════════════════════ -->
+  <!-- MODAL: ALERT PREMIUM (NUEVO)           -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="modal-overlay" id="modalAlertOverlay">
+    <div class="modal-card card-glass" style="max-width: 400px; text-align: center; padding: 30px;">
+      <div id="alertIconContainer" style="margin-bottom: 20px;">
+        <!-- Icono dinámico -->
+      </div>
+      <h3 id="alertTitle" style="color: #fff; font-size: 1.4rem; margin-bottom: 10px;">Notificación</h3>
+      <p id="alertMessage" style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px; line-height: 1.4;">
+      </p>
+      <button class="btn-primary" onclick="closePremiumAlert()" style="width: 100%; margin: 0;">Entendido</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- MODAL: PROMPT PREMIUM (NUEVO)          -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="modal-overlay" id="modalPromptOverlay">
+    <div class="modal-card card-glass" style="max-width: 450px; padding: 30px;">
+      <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+        <div
+          style="width: 48px; height: 48px; border-radius: 12px; background: rgba(0, 224, 255, 0.15); display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent-cyan);">
+          <i data-lucide="edit-3" class="minimalist-icon"
+            style="color: var(--accent-cyan); width: 24px; height: 24px;"></i>
+        </div>
+        <div>
+          <h3 id="promptTitle" style="color: #fff; font-size: 1.2rem; margin: 0;">Entrada de Datos</h3>
+          <p id="promptSubtitle" style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">Por favor completa el
+            campo:</p>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 25px;">
+        <label id="promptLabel"
+          style="display: block; margin-bottom: 8px; font-size: 0.9rem; color: #fff;">Descripción</label>
+        <input type="text" id="promptInput" class="form-input" style="width: 100%; height: 50px; font-size: 1rem;"
+          autofocus>
+      </div>
+
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button class="btn-secondary" onclick="closePremiumPrompt(false)" style="padding: 10px 20px;">Cancelar</button>
+        <button class="btn-primary" onclick="closePremiumPrompt(true)" style="padding: 10px 25px;">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
   <!--  ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? -->
   <!-- MODAL: CONFIRMACION DE ELIMINACION -->
   <!--  ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? -->
@@ -2978,6 +3019,7 @@
       <p id="deleteConfirmMessage"
         style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px; line-height: 1.4;">Esta acción no se
         puede deshacer y los datos se perderán permanentemente.</p>
+
 
       <div style="display: flex; gap: 15px; justify-content: center;">
         <button class="btn-secondary" onclick="closeDeleteConfirmModal()" style="flex: 1; margin: 0;">Cancelar</button>
@@ -3107,6 +3149,27 @@
       }
     });
   </script>
+  <!-- Modal para ver y utilizar códigos 2FA -->
+  <div class="modal-overlay" id="modal2FAOverlay">
+    <div class="modal-card card-glass" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3><i data-lucide="shield-check" class="minimalist-icon" style="color:var(--accent-purple)"></i> Codigos de
+          Verificación</h3>
+        <button class="modal-close" onclick="closeModal2FA()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="listadoCodigos2FA" style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+          <!-- Se llena dinámicamente -->
+        </div>
+      </div>
+    </div>
+  </div>
+
 </body>
 
 </html>

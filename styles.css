@@ -196,7 +196,7 @@ select,
   background: rgba(255, 255, 255, 0.03) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   border-radius: 12px !important;
-  padding: 14px 18px !important;
+  padding: 14px 18px;
   color: #fff !important;
   font-size: 0.95rem !important;
   transition: all 0.3s ease !important;
@@ -207,6 +207,12 @@ select,
   border-color: var(--accent-cyan) !important;
   box-shadow: 0 0 15px rgba(57, 214, 249, 0.2) !important;
   outline: none !important;
+}
+
+.form-input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.6;
+  cursor: pointer;
 }
 
 .remembrance-container {
@@ -2289,4 +2295,95 @@ svg {
 .form-select option:enabled:hover {
   background-color: #39d6f9;
   color: #000;
+}
+
+/* 2FA Badge & Modal Styles */
+.badge-2fa {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #111827;
+  color: #fff;
+  border-radius: 8px;
+  min-width: 32px;
+  height: 32px;
+  font-weight: 800;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.badge-2fa:hover {
+  transform: scale(1.1);
+  background: var(--accent-purple);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.badge-2fa.zero {
+  opacity: 0.5;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: default;
+}
+
+.badge-2fa.zero:hover {
+  transform: none;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.code-2fa-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.2s ease;
+}
+
+.code-2fa-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.code-2fa-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.code-2fa-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-light);
+  letter-spacing: 1px;
+}
+
+.btn-utilizar {
+  background: #111827;
+  color: #fff;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-utilizar:hover {
+  background: #fff;
+  color: #000;
+}
+
+.inventory-textarea {
+  min-height: 80px;
+  resize: vertical;
+  line-height: 1.5;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem !important;
 }
