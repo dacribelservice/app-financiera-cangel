@@ -1,5 +1,5 @@
 # 🧠 BITÁCORA DE CONTEXTO: CANGEL GAMES APP
-**Última Actualización:** 07/03/2026 (V11.0)
+**Última Actualización:** 10/03/2026 (V11.8)
 
 Este documento es el cerebro a largo plazo de la aplicación. Describe la lógica arquitectónica y el estado de los módulos para que cualquier nueva sesión de Antigravity (y el usuario) no pierda el contexto del código.
 
@@ -9,8 +9,35 @@ Este documento es el cerebro a largo plazo de la aplicación. Describe la lógic
 - [x] Fix overlap of Facturación and Cuentas PSN tables in Ventas module due to missing `</table>` tag
 - [x] Refactor native `confirm()` to custom modal `showDeleteConfirmModal()` for deleting Paquetes and Membresías
 - [x] Fix sold PSN accounts not appearing in the "Cuentas PSN" table by updating `renderCuentasPSN` to check for active sales.
+- [x] Fix orphaned "ghost games" in red by including `idealStock` and `catalog` in the data cleanup process.
+- [x] Fix "Guardar Paquete" and "Guardar Membresía" buttons not working due to undefined variable references in `logEvent`.
 
 ### 📝 LOG DE VERSIONES
+
+#### [V11.8] - 10/03/2026
+- **Estandarización de Puerto:** Se ha validado que la aplicación opera exclusivamente a través del puerto 3000. Se han eliminado residuos de configuraciones anteriores y se ha generado el enlace de acceso oficial: `http://localhost:3000/`.
+
+#### [V11.7] - 09/03/2026
+- **Ingresos Adicionales en Balance:** Nueva sección en el módulo de Balance para registrar dinero extra (aportes de socios, capital de inversión, préstamos, etc.). Tabla con diseño verde diferenciado, contador del total acumulado, botones de editar y eliminar, y persistencia en `localStorage`. El nuevo total se suma automáticamente a los Ingresos en las KPIs del Balance y al cálculo de Ganancia Neta y dividendos de socios.
+
+#### [V11.6] - 09/03/2026
+- **Contador de Cantidad en Códigos PSN:** Cada fila de código en el modal de ventas ahora tiene un **stepper** (`-` / cantidad / `+`) limitado al stock disponible de esa denominación. El vendedor puede seleccionar 1x50us + 2x10us para vender $70us. Al guardar, crea N registros individuales (uno por código). El sistema valida que haya stock suficiente antes de guardar.
+
+#### [V11.5] - 09/03/2026
+- **Códigos PSN en Ventas:** Integración completa del flujo de venta de códigos PSN. El modal de nueva venta ahora incluye un desplegable de denominaciones (`10us`, `25us`, etc.) construido dinámicamente desde el inventario de códigos disponibles. Al guardar la venta, se registra la denominación elegida. Al copiar la remisión, el sistema asigna automáticamente el primer PIN disponible del inventario, lo marca como `OFF/Usado`, y lo incluye en el texto copiado. Si no hay stock, bloquea la copia con una alerta.
+
+#### [V11.4] - 09/03/2026
+- **Sincronización de Códigos:** Al marcar un código PIN como "Usado" en el inventario, su estado cambia automáticamente a `OFF`. Esto asegura que los asesores no tengan acceso a códigos ya vendidos. Si se desmarca, vuelve automáticamente a `ON`.
+
+#### [V11.3] - 09/03/2026
+- **Mejora UI Inventario:** Implementación de tooltip multilínea en el contador de juegos de la tabla de paquetes. Al pasar el cursor, se despliega la lista completa de títulos incluidos.
+
+#### [V11.2] - 09/03/2026
+- **Fix Inventario:** Se corrigieron errores críticos en las funciones `savePaqueteInventory` y `saveMembresiaInventory` que impedían guardar o editar ítems debido a referencias a variables inexistentes en el sistema de logs.
+
+#### [V11.1] - 09/03/2026
+- **Limpieza de Datos Huérfanos:** Se actualizó la función `confirmarLimpiezaDatos` para incluir la limpieza de `idealStock`, `catalog`, `clients`, `raffles` y `plantillas`. Esto resuelve el problema de juegos "fantasma" que aparecían en rojo por persistencia de registros de stock ideal. El botón de limpieza se mantiene exclusivamente en el módulo de **Bitácora** para mayor seguridad.
+- **Estandarización de Acceso:** Confirmación y verificación de la aplicación para operar exclusivamente a través del puerto 3000 (`http://localhost:3000/`).
 
 #### [V11.0] - 07/03/2026
 - **Auditoría Maestra:** Refactorización de `logEvent` para garantizar persistencia inmediata (`saveLocal`) y captura del nombre del usuario en cada evento.

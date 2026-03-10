@@ -1721,9 +1721,11 @@
 
           <!-- Historial de Clientes -->
           <div class="card" style="margin-top:1.5rem; padding:1.5rem;">
+
+            <!-- Header principal con título y botón sorteo -->
             <div class="section-header-flex"
-              style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
-              <h3 class="chart-title" style="margin:0">Historial de Clientes</h3>
+              style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:1rem;">
+              <h3 class="chart-title" style="margin:0" id="clientsSectionTitle">Historial de Clientes</h3>
               <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                 <input type="text" placeholder="Buscar cliente..." class="scraping-input" style="max-width:220px"
                   oninput="filterClients(this.value)">
@@ -1735,11 +1737,38 @@
                   border:none; border-radius:10px; padding:10px 20px;
                   cursor:pointer; box-shadow: 0 4px 15px rgba(0,198,255,0.35);
                   transition: all 0.2s ease; white-space:nowrap;">
-                  <i data-lucide="plus" style="width:15px; height:15px;"></i> Crear Sorteo
+                  <i data-lucide="plus" style="width:15px; height:15px;"></i> Crear Lista
                 </button>
               </div>
             </div>
-            <div class="table-container" style="margin-top:1rem">
+
+            <!-- TABS: Historial Cliente / Listas -->
+            <div style="
+              display: inline-flex;
+              background: rgba(255,255,255,0.04);
+              border: 1px solid rgba(255,255,255,0.08);
+              border-radius: 12px;
+              padding: 4px;
+              gap: 4px;
+              margin-bottom: 1rem;">
+              <button id="tabBtnHistorial" onclick="switchClientTab('historial')" style="
+                display:inline-flex; align-items:center; gap:8px;
+                padding:8px 20px; border-radius:9px; border:none; cursor:pointer; font-size:0.85rem; font-weight:600;
+                background: var(--accent-cyan); color:#000; box-shadow:0 2px 8px rgba(0,198,255,0.3);
+                transition:all 0.2s ease;">
+                <i data-lucide="users" style="width:15px;height:15px;"></i> Historial Cliente
+              </button>
+              <button id="tabBtnListas" onclick="switchClientTab('listas')" style="
+                display:inline-flex; align-items:center; gap:8px;
+                padding:8px 20px; border-radius:9px; border:none; cursor:pointer; font-size:0.85rem; font-weight:600;
+                background:transparent; color:var(--text-muted);
+                transition:all 0.2s ease;">
+                <i data-lucide="list" style="width:15px;height:15px;"></i> Listas
+              </button>
+            </div>
+
+            <!-- Vista: Historial Cliente -->
+            <div id="viewHistorialCliente" class="table-container">
               <table class="excel-table" id="clientsTable">
                 <thead>
                   <tr class="header">
@@ -1751,11 +1780,33 @@
                     <th>Celular</th>
                     <th>Consola Pref.</th>
                     <th>Fidelidad</th>
+                    <th>Lista</th>
                   </tr>
                 </thead>
                 <tbody id="clientsBody"></tbody>
               </table>
             </div>
+
+            <!-- Vista: Listas -->
+            <div id="viewListas" class="table-container" style="display:none;">
+              <table class="excel-table" id="listasTable">
+                <thead>
+                  <tr class="header">
+                    <th>#</th>
+                    <th>Nombre</th>
+                    <th>CC</th>
+                    <th>Ciudad</th>
+                    <th>Total Compras</th>
+                    <th>Celular</th>
+                    <th>Consola Pref.</th>
+                    <th>Fidelidad</th>
+                    <th>Lista</th>
+                  </tr>
+                </thead>
+                <tbody id="listasBody"></tbody>
+              </table>
+            </div>
+
           </div>
 
 
@@ -1766,8 +1817,10 @@
         <!-- ══════════════════════════════════════ -->
         <section class="page-content" id="pageBalance">
           <div class="page-header">
-            <h2>Balance General</h2>
-            <p>Estado financiero consolidado · Auditoría bancaria · Gastos · Dividendos</p>
+            <div>
+              <h2>Balance General</h2>
+              <p>Estado financiero consolidado · Auditoría bancaria · Gastos · Dividendos</p>
+            </div>
           </div>
 
           <!-- Resumen financiero -->
@@ -1873,6 +1926,44 @@
             </div>
           </div>
 
+          <!-- Ingresos Adicionales (capital de inversión, aportes, etc.) -->
+          <div class="card"
+            style="margin-top:1.5rem; padding:1.5rem; border-color: rgba(16,185,129,0.3); background: linear-gradient(135deg, rgba(16,185,129,0.04) 0%, transparent 60%);">
+            <div class="section-header-flex" style="margin-bottom:1rem;">
+              <h3 class="chart-title" style="margin:0; color: var(--accent-green);">
+                <i data-lucide="circle-plus" class="minimalist-icon" style="color:var(--accent-green);"></i> Ingresos
+                Adicionales
+              </h3>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <div
+                  style="background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); border-radius:8px; padding:6px 14px; font-size:0.85rem;">
+                  Total: <strong id="totalIngresosAdicionales" style="color:var(--accent-green);">$0</strong>
+                </div>
+                <button class="btn-primary btn-sm"
+                  style="background:var(--accent-green); border-color:var(--accent-green);" onclick="addIngreso()">
+                  <i data-lucide="plus" class="minimalist-icon"></i> Añadir
+                </button>
+              </div>
+            </div>
+            <p style="color:var(--text-muted); font-size:0.82rem; margin-bottom:1rem;">
+              Registra dinero adicional que ingresa al negocio: aportes de socios, capital de inversión, préstamos, etc.
+            </p>
+            <div class="table-container">
+              <table class="excel-table" id="ingresosAdicionalesTable">
+                <thead>
+                  <tr class="header">
+                    <th>ID</th>
+                    <th>Descripción</th>
+                    <th>Monto ($)</th>
+                    <th>Fecha</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="ingresosAdicionalesBody"></tbody>
+              </table>
+            </div>
+          </div>
+
           <!-- Gastos (Operativos + Ocasionales) -->
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-top:1.5rem">
             <div class="card" style="padding:1.5rem">
@@ -1886,7 +1977,7 @@
                 <table class="excel-table" id="gastosOperativosTable">
                   <thead>
                     <tr class="header">
-                      <th>#</th>
+                      <th>ID</th>
                       <th>Descripción</th>
                       <th>Monto ($)</th>
                       <th>Fecha</th>
@@ -1908,7 +1999,7 @@
                 <table class="excel-table" id="gastosOcasionalesTable">
                   <thead>
                     <tr class="header">
-                      <th>#</th>
+                      <th>ID</th>
                       <th>Descripción</th>
                       <th>Monto ($)</th>
                       <th>Fecha</th>

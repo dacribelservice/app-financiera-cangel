@@ -1,5 +1,5 @@
 /* ================================================
-   CANGEL GAMES ERP — Súper Gestión Integral (V10.0)
+   CANGEL GAMES ERP — Súper Gestión Integral (V11.7)
    7 Módulos · Roles · Ecommerce · IA & Hosting
    ================================================ */
 
@@ -16,6 +16,8 @@ const AppState = {
   catalog: [],
   analysis: [],
   inventory: [],
+  inventoryGames: [],
+  inventoryCodes: [],
   sales: [],
   expenses: [],
   raffles: [],
@@ -2123,48 +2125,101 @@ function removeVentaMembresiaRow(rowId) {
  */
 function addVentaCodigoRow(data = null, isEdit = false) {
   const container = document.getElementById('ventaCodigosRowsContainer');
-  const count = container.children.length;
   const rowId = 'cod_' + Date.now() + Math.floor(Math.random() * 1000);
 
   const rowDiv = document.createElement('div');
   rowDiv.className = 'game-row-box';
   rowDiv.id = `row-${rowId}`;
+  rowDiv.style.cssText = 'display:grid; grid-template-columns: 1fr auto auto auto; gap:10px; align-items:end;';
 
-  let itemText = '';
-  if (data && data.inventoryId) {
-    const c = AppState.inventory.find(ag => String(ag.id) === String(data.inventoryId));
-    itemText = c ? `(${c.id}) ${c.juego}` : data.inventoryId;
+  // Construir opciones de denominaciones disponibles desde inventoryCodes
+  const codesDisponibles = (AppState.inventoryCodes || []).filter(c => c.estado === 'ON' && !c.usado);
+  const denomsUnicas = [...new Set(codesDisponibles.map(c => c.precioUsd))].sort((a, b) => a - b);
+
+  let opcionesDenom = '';
+  if (denomsUnicas.length === 0) {
+    opcionesDenom = '<option value="" disabled>⚠️ Sin stock disponible</option>';
+  } else {
+    opcionesDenom = '<option value="">-- Denominación --</option>';
+    denomsUnicas.forEach(d => {
+      const count = codesDisponibles.filter(c => c.precioUsd === d).length;
+      const sel = (data && String(data.codigoDenom) === String(d)) ? 'selected' : '';
+      opcionesDenom += `<option value="${d}" data-max="${count}" ${sel}>${d}us (${count} disp.)</option>`;
+    });
   }
 
+  const initQty = data?.cantidad || 1;
+  const initPrecio = data?.venta || '';
+
   rowDiv.innerHTML = `
-    <div class="form-group" style="position: relative; grid-column: 1 / -1; margin-bottom: 5px;">
-      <label style="color:var(--accent-purple);">Juego (Código) / ID</label>
-      <input type="text" class="scraping-input row-codigo-search" placeholder="Buscar código..." 
-        value="${itemText}" oninput="handleVentaCodigoAutocomplete(this, '${rowId}')" autocomplete="off" 
-        style="width: 100%; border-color: rgba(168,85,247,0.3);">
-      <input type="hidden" class="row-inventory-id" value="${data?.inventoryId || ''}">
+    <div class="form-group" style="position:relative; margin:0;">
+      <label style="color:var(--accent-purple); font-size:0.75rem; margin-bottom:4px; display:block;">Denominación</label>
+      <select class="scraping-input row-codigo-denom" 
+              style="width:100%; border-color:rgba(168,85,247,0.3);" 
+              onchange="updateCodigoRowMax('${rowId}', this)">
+        ${opcionesDenom}
+      </select>
+      <input type="hidden" class="row-inventory-id" value="">
       <input type="hidden" class="row-product-type" value="codigo">
-      <div id="suggestions-${rowId}" class="autocomplete-suggestions"></div>
     </div>
 
-    <div class="form-group">
-      <label>Tipo (Automático)</label>
-      <input type="text" class="scraping-input row-tipo-cuenta" value="Código" readonly style="width: 100%; background:rgba(0,0,0,0.5); color:#888;">
+    <div class="form-group" style="margin:0;">
+      <label style="color:var(--text-muted); font-size:0.75rem; margin-bottom:4px; display:block; white-space:nowrap;">Cantidad</label>
+      <div style="display:flex; align-items:center; gap:0; border:1px solid rgba(168,85,247,0.4); border-radius:8px; overflow:hidden; background:rgba(0,0,0,0.3);">
+        <button type="button" onclick="stepCodigo('${rowId}', -1)" 
+                style="background:rgba(168,85,247,0.15); border:none; color:var(--accent-purple); width:32px; height:38px; font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <i data-lucide="minus" style="width:12px; height:12px;"></i>
+        </button>
+        <input type="number" id="qty-${rowId}" class="row-codigo-qty" value="${initQty}" min="1" max="99" 
+               style="width:42px; text-align:center; background:transparent; border:none; color:#fff; font-size:0.9rem; font-weight:700; padding:0 2px; outline:none;" readonly>
+        <button type="button" onclick="stepCodigo('${rowId}', 1)" 
+                style="background:rgba(168,85,247,0.15); border:none; color:var(--accent-purple); width:32px; height:38px; font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <i data-lucide="plus" style="width:12px; height:12px;"></i>
+        </button>
+      </div>
     </div>
 
-    <div class="form-group">
-      <label>Valor ($)</label>
-      <input type="number" class="scraping-input row-precio" placeholder="COP" value="${data?.venta || ''}" style="width: 100%;">
+    <div class="form-group" style="margin:0;">
+      <label style="color:var(--text-muted); font-size:0.75rem; margin-bottom:4px; display:block; white-space:nowrap;">Precio c/u (COP)</label>
+      <input type="number" class="scraping-input row-precio" placeholder="COP" value="${initPrecio}" 
+             style="width:110px; border-color:rgba(168,85,247,0.3);">
     </div>
 
-    <div style="display:flex; align-items:center;">
-      <button type="button" onclick="removeVentaCodigoRow('${rowId}')" class="btn-remove-game" title="Quitar item">
+    <div style="display:flex; align-items:flex-end; padding-bottom:2px;">
+      <button type="button" onclick="removeVentaCodigoRow('${rowId}')" class="btn-remove-game" title="Quitar" style="margin:0;">
         <i data-lucide="trash-2" class="minimalist-icon" style="color:var(--accent-purple);"></i>
       </button>
     </div>
   `;
+
+  // Mostrar subtotal dinámico abajo de la fila (opcional visual)
   container.appendChild(rowDiv);
   if (window.lucide) window.lucide.createIcons();
+}
+
+// Stepper para la cantidad de códigos PSN
+function stepCodigo(rowId, delta) {
+  const qtyInput = document.getElementById(`qty-${rowId}`);
+  const row = document.getElementById(`row-${rowId}`);
+  if (!qtyInput || !row) return;
+
+  const denomSelect = row.querySelector('.row-codigo-denom');
+  const selectedOpt = denomSelect ? denomSelect.options[denomSelect.selectedIndex] : null;
+  const maxDisp = selectedOpt ? parseInt(selectedOpt.getAttribute('data-max') || '99') : 99;
+
+  let current = parseInt(qtyInput.value) || 1;
+  current = Math.min(Math.max(current + delta, 1), maxDisp);
+  qtyInput.value = current;
+}
+
+// Actualizar el máx del stepper cuando cambia la denominación
+function updateCodigoRowMax(rowId, selectEl) {
+  const qtyInput = document.getElementById(`qty-${rowId}`);
+  if (!qtyInput) return;
+  const selectedOpt = selectEl.options[selectEl.selectedIndex];
+  const maxDisp = parseInt(selectedOpt?.getAttribute('data-max') || '99');
+  let current = parseInt(qtyInput.value) || 1;
+  qtyInput.value = Math.min(current, maxDisp);
 }
 
 function removeVentaCodigoRow(rowId) {
@@ -2281,45 +2336,86 @@ function saveVentaDataForm() {
     // Registro múltiple
     let countSaved = 0;
     rows.forEach(row => {
-      const invId = row.querySelector('.row-inventory-id').value;
-      const tCuenta = row.querySelector('.row-tipo-cuenta').value;
-      const precio = parseFloat(row.querySelector('.row-precio').value) || 0;
       const pType = row.querySelector('.row-product-type') ? row.querySelector('.row-product-type').value : 'game';
+      const precio = parseFloat(row.querySelector('.row-precio').value) || 0;
 
-      if (invId && tCuenta) {
-        // Reducir stock si aplica
-        if (pType === 'paquete') {
-          const itemP = AppState.paquetes.find(p => String(p.id) === String(invId));
-          if (itemP) {
-            const field = getFieldFromCuentaExacta(tCuenta);
-            if (field) itemP[field] = 'Vendido';
-          }
-        } else if (pType === 'membresia') {
-          const itemM = AppState.membresias.find(m => String(m.id) === String(invId));
-          if (itemM) {
-            const field = getFieldFromCuentaExacta(tCuenta);
-            if (field) itemM[field] = 'Vendido';
-          }
-        } else if (pType === 'codigo') {
-          const itemC = AppState.inventory.find(c => String(c.id) === String(invId));
-          if (itemC) itemC.estado = 'Vendido';
+      if (pType === 'codigo') {
+        // Para códigos, usar la denominación del select y la cantidad del stepper
+        const denomSelect = row.querySelector('.row-codigo-denom');
+        const denom = denomSelect ? denomSelect.value : '';
+        const qtyInput = row.querySelector('.row-codigo-qty');
+        const qty = Math.max(1, parseInt(qtyInput ? qtyInput.value : '1') || 1);
+
+        if (!denom) {
+          showToast('⚠️ Selecciona una denominación para el código PSN.', 'warning');
+          return;
         }
 
-        const rawId = Math.random().toString(36).substr(2, 6).toUpperCase();
-        const generatedId = 'V-' + rawId;
+        // Verificar que hay stock suficiente
+        const codesDisp = (AppState.inventoryCodes || []).filter(
+          c => c.estado === 'ON' && !c.usado && parseFloat(c.precioUsd) === parseFloat(denom)
+        );
+        if (codesDisp.length < qty) {
+          showToast(`⚠️ Solo hay ${codesDisp.length} código(s) disponibles de ${denom}us, pediste ${qty}.`, 'warning');
+          return;
+        }
 
-        AppState.sales.unshift({
-          id: generatedId,
-          transaction_id: txId,
-          fecha: t.date,
-          hora: t.time,
-          inventoryId: invId,
-          tipo_cuenta: tCuenta,
-          venta: precio,
-          productType: pType,
-          ...commonData
-        });
-        countSaved++;
+        // Crear N registros de venta individuales (uno por código)
+        for (let i = 0; i < qty; i++) {
+          const rawId = Math.random().toString(36).substr(2, 6).toUpperCase();
+          const generatedId = 'V-' + rawId;
+
+          AppState.sales.unshift({
+            id: generatedId,
+            transaction_id: txId,
+            fecha: t.date,
+            hora: t.time,
+            inventoryId: '',
+            codigoDenom: denom,         // Denominación elegida (ej: "10")
+            codigoAsignado: '',         // El PIN real se asigna al copiar la remisión
+            tipo_cuenta: 'Código',
+            venta: precio,
+            productType: 'codigo',
+            ...commonData
+          });
+          countSaved++;
+        }
+      } else {
+        const invId = row.querySelector('.row-inventory-id').value;
+        const tCuenta = row.querySelector('.row-tipo-cuenta').value;
+
+        if (invId && tCuenta) {
+          // Reducir stock si aplica
+          if (pType === 'paquete') {
+            const itemP = AppState.paquetes.find(p => String(p.id) === String(invId));
+            if (itemP) {
+              const field = getFieldFromCuentaExacta(tCuenta);
+              if (field) itemP[field] = 'Vendido';
+            }
+          } else if (pType === 'membresia') {
+            const itemM = AppState.membresias.find(m => String(m.id) === String(invId));
+            if (itemM) {
+              const field = getFieldFromCuentaExacta(tCuenta);
+              if (field) itemM[field] = 'Vendido';
+            }
+          }
+
+          const rawId = Math.random().toString(36).substr(2, 6).toUpperCase();
+          const generatedId = 'V-' + rawId;
+
+          AppState.sales.unshift({
+            id: generatedId,
+            transaction_id: txId,
+            fecha: t.date,
+            hora: t.time,
+            inventoryId: invId,
+            tipo_cuenta: tCuenta,
+            venta: precio,
+            productType: pType,
+            ...commonData
+          });
+          countSaved++;
+        }
       }
     });
 
@@ -2517,15 +2613,19 @@ function updateBalance() {
   // v.venta = campo actual (COP). Fallback a v.precio para registros legacy
   const ing = AppState.sales.reduce((sum, v) => sum + (parseFloat(v.venta) || parseFloat(v.precio) || 0), 0);
 
+  // Ingresos adicionales (aportes, capital, etc.)
+  const ingExtra = (AppState.incomeExtra || []).reduce((sum, e) => sum + (parseFloat(e.monto) || 0), 0);
+
   // Costos del inventario: suma costoCop de juegos + costoCop de códigos (ambos en COP)
   const cosJuegos = AppState.inventoryGames.reduce((sum, i) => sum + (parseFloat(i.costoCop) || 0), 0);
   const cosCodigos = AppState.inventoryCodes.reduce((sum, c) => sum + (parseFloat(c.costoCop) || 0), 0);
   const cos = cosJuegos + cosCodigos;
 
   const gas = AppState.expenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
-  const neta = ing - cos - gas;
+  const totalIngresos = ing + ingExtra;
+  const neta = totalIngresos - cos - gas;
 
-  document.getElementById('balIngresos').textContent = `$${ing.toLocaleString('es-CO')}`;
+  document.getElementById('balIngresos').textContent = `$${totalIngresos.toLocaleString('es-CO')}`;
   document.getElementById('balCostos').textContent = `$${cos.toLocaleString('es-CO')}`;
   document.getElementById('balGastos').textContent = `$${gas.toLocaleString('es-CO')}`;
   document.getElementById('balNeta').textContent = `$${neta.toLocaleString('es-CO')}`;
@@ -2534,7 +2634,12 @@ function updateBalance() {
   document.getElementById('balSocio1').textContent = `$${div}`;
   document.getElementById('balSocio2').textContent = `$${div}`;
 
+  // Actualizar total de ingresos adicionales en la tabla
+  const totalEl = document.getElementById('totalIngresosAdicionales');
+  if (totalEl) totalEl.textContent = `$${ingExtra.toLocaleString('es-CO')}`;
+
   renderExpenses();
+  renderIngresos();
   renderPagoMetodoChart();
 }
 
@@ -2809,6 +2914,123 @@ async function prepararEdicionGasto(id) {
 }
 
 /* ═══════════════════════════════════════ */
+/* INGRESOS ADICIONALES (Balance)          */
+/* ═══════════════════════════════════════ */
+
+async function addIngreso() {
+  const desc = await showPremiumPrompt(
+    'Nuevo Ingreso',
+    'Registra un ingreso adicional (aporte de socio, capital, préstamo, etc.).',
+    'Descripción:',
+    ''
+  );
+  if (!desc || !desc.trim()) return;
+
+  const montoStr = await showPremiumPrompt(
+    'Monto del Ingreso',
+    'Ingresa el valor en pesos colombianos (COP).',
+    'Monto ($):',
+    '',
+    'number'
+  );
+  if (montoStr === null) return;
+  const monto = parseFloat(montoStr);
+  if (isNaN(monto) || monto <= 0) {
+    await showPremiumAlert('Error', 'Ingresa un monto válido mayor a 0.', 'error');
+    return;
+  }
+
+  const t = getColombiaTime();
+  const newIngreso = {
+    id: Date.now(),
+    desc: desc.trim(),
+    monto,
+    fecha: t.date
+  };
+
+  if (!AppState.incomeExtra) AppState.incomeExtra = [];
+  AppState.incomeExtra.unshift(newIngreso);
+  logEvent('Balance: Ingreso Adicional', `ID: ${newIngreso.id} | Desc: ${desc} | Monto: $${monto.toLocaleString('es-CO')}`);
+  renderIngresos();
+  updateBalance();
+  saveLocal();
+  showToast('✅ Ingreso adicional registrado');
+}
+
+function renderIngresos() {
+  const tbody = document.getElementById('ingresosAdicionalesBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const lista = (AppState.incomeExtra || []);
+  if (lista.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:20px;">No hay ingresos adicionales registrados.</td></tr>';
+    return;
+  }
+
+  lista.forEach((e, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-size:0.78rem; color:var(--text-muted); font-family:monospace;">${e.id.toString().slice(-6)}</td>
+      <td>${e.desc}</td>
+      <td><strong style="color:var(--accent-green);">+$${parseFloat(e.monto).toLocaleString('es-CO')}</strong></td>
+      <td>${e.fecha}</td>
+      <td>
+        <div style="display:flex; gap:8px;">
+          <button class="action-btn-premium" onclick="prepararEdicionIngreso(${e.id})" title="Editar">
+            <i data-lucide="pencil" style="width:14px; height:14px;"></i>
+          </button>
+          <button class="action-btn-premium" onclick="eliminarIngreso(${e.id})" title="Eliminar" style="border-color:rgba(255,71,87,0.3);">
+            <i data-lucide="trash-2" style="width:14px; height:14px; color:#ff4757;"></i>
+          </button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function eliminarIngreso(id) {
+  const index = (AppState.incomeExtra || []).findIndex(e => e.id === id);
+  if (index === -1) return;
+  const ingreso = AppState.incomeExtra[index];
+  showDeleteConfirmModal(
+    `¿Eliminar ingreso: "${ingreso.desc}" por $${ingreso.monto.toLocaleString('es-CO')}?`,
+    () => {
+      AppState.incomeExtra.splice(index, 1);
+      logEvent('Balance: Ingreso Eliminado', `ID: ${id} | Desc: ${ingreso.desc} | Monto: $${ingreso.monto}`);
+      renderIngresos();
+      updateBalance();
+      saveLocal();
+      showToast('Ingreso eliminado', 'info');
+    }
+  );
+}
+
+async function prepararEdicionIngreso(id) {
+  const ingreso = (AppState.incomeExtra || []).find(e => e.id === id);
+  if (!ingreso) return;
+
+  const nuevaDesc = await showPremiumPrompt('Editar Ingreso', 'Modifica la descripción:', 'Descripción:', ingreso.desc);
+  if (nuevaDesc === null) return;
+
+  const nuevoMonto = await showPremiumPrompt('Editar Monto', 'Ingresa el nuevo valor:', 'Monto ($):', ingreso.monto, 'number');
+  if (nuevoMonto === null) return;
+  const montoVal = parseFloat(nuevoMonto);
+  if (isNaN(montoVal) || montoVal <= 0) { await showPremiumAlert('Error', 'Monto inválido.', 'error'); return; }
+
+  const descVieja = ingreso.desc;
+  ingreso.desc = nuevaDesc.trim();
+  ingreso.monto = montoVal;
+  logEvent('Balance: Ingreso Modificado', `ID: ${id} | De: ${descVieja} a ${nuevaDesc} | Monto: $${montoVal}`);
+  renderIngresos();
+  updateBalance();
+  saveLocal();
+  showToast('Ingreso actualizado correctamente');
+}
+
+/* ═══════════════════════════════════════ */
 /* 7. HELPERS & PERSISTENCIA               */
 /* ═══════════════════════════════════════ */
 
@@ -2831,8 +3053,11 @@ function saveLocal() {
     paquetes: AppState.paquetes,
     membresias: AppState.membresias,
     expenses: AppState.expenses,
+    incomeExtra: AppState.incomeExtra,
     analysis: AppState.analysis,
-    idealStock: AppState.idealStock
+    idealStock: AppState.idealStock,
+    clientsListas: AppState.clientsListas,
+    listas: AppState.listas
   }));
 }
 
@@ -2852,6 +3077,11 @@ function confirmarLimpiezaDatos() {
       AppState.expenses = [];
       AppState.auditLog = [];
       AppState.analysis = [];
+      AppState.catalog = [];
+      AppState.clients = [];
+      AppState.raffles = [];
+      AppState.idealStock = {};
+      AppState.plantillas = {};
 
       logEvent('LIMPIEZA TOTAL', 'Se ha realizado una limpieza completa de los datos de prueba del sistema.');
       saveLocal();
@@ -2896,8 +3126,11 @@ function loadLocal() {
     AppState.paquetes = data.paquetes || [];
     AppState.membresias = data.membresias || [];
     AppState.expenses = data.expenses || [];
+    AppState.incomeExtra = data.incomeExtra || [];
     AppState.analysis = data.analysis || [];
     AppState.idealStock = data.idealStock || {};
+    AppState.clientsListas = data.clientsListas || {};
+    AppState.listas = data.listas || [];
 
     // Limpieza automática de datos de prueba antiguos
     const testIds = ["101", "102", "103", "104", "V-675559"];
@@ -3913,19 +4146,24 @@ function toggleCodigoStatus(id) {
 function toggleCodigoUsed(id) {
   const code = AppState.inventoryCodes.find(c => c.id === id);
   if (code) {
-    // Si el usuario intenta marcar como usado pero está OFF, mostrar advertencia
-    if (code.estado === 'OFF' && !code.usado) {
-      showToast("Debe estar ON para poder marcarlo mediante el checklist", "warning");
-      return;
+    // Si el usuario intenta marcar como usado pero está OFF, permitirlo pero sincronizar
+    code.usado = !code.usado;
+
+    // Sincronizar estado: Si se marca como usado, pasar a OFF. Si se desmarca, pasar a ON.
+    code.estado = code.usado ? 'OFF' : 'ON';
+
+    if (typeof logEvent === 'function') {
+      logEvent('Inventario Códigos: Uso', `ID: ${id} | Usado: ${code.usado} | Estado: ${code.estado}`);
     }
 
-    code.usado = !code.usado;
     saveLocal();
     renderInventoryCodigos();
     calculateBalances();
 
     if (code.usado) {
-      showToast("PIN marcado como usado correctamente");
+      showToast("PIN marcado como usado y desactivado (OFF)");
+    } else {
+      showToast("PIN marcado como disponible y activado (ON)");
     }
   }
 }
@@ -4890,24 +5128,71 @@ function copiarFactura(ventaId) {
     const plantillaBloque = AppState.plantillas['Multi-Juego: Bloque Juego'] ||
       '📦 {JUEGO_NOMBRE} ({TIPO_CUENTA})\n   Correo: {CORREO}\n   Contraseña: {PASS}\n   2FA: {CODIGO_2FA}\n   Precio: {PRECIO_JUEGO}';
 
+    // Verificar si hay códigos PSN sin stock antes de proceder
+    let sinStock = [];
     ventasDelPedido.forEach((v) => {
-      const dataInv = getInventoryItemData(v);
-      let gameCorreo = dataInv.cCorreo;
-      let gamePass = dataInv.cPass;
-      let game2FA = dataInv.c2fa;
-      let gameNombre = dataInv.jNombre;
+      if (v.productType === 'codigo' && !v.codigoAsignado) {
+        const denom = parseFloat(v.codigoDenom) || 0;
+        const disponible = (AppState.inventoryCodes || []).find(
+          c => c.estado === 'ON' && !c.usado && parseFloat(c.precioUsd) === denom
+        );
+        if (!disponible) sinStock.push(`${v.codigoDenom}us`);
+      }
+    });
 
+    if (sinStock.length > 0) {
+      showToast(`⚠️ Sin stock de código PSN: ${sinStock.join(', ')}. Agrega más en Inventario → Códigos.`, 'warning');
+      return;
+    }
+
+    // Asignar PINs del inventario antes de generar el texto
+    let codigosAsignadosAhora = [];
+    ventasDelPedido.forEach((v) => {
+      if (v.productType === 'codigo' && !v.codigoAsignado) {
+        const denom = parseFloat(v.codigoDenom) || 0;
+        const codeItem = (AppState.inventoryCodes || []).find(
+          c => c.estado === 'ON' && !c.usado && parseFloat(c.precioUsd) === denom
+        );
+        if (codeItem) {
+          codeItem.usado = true;
+          codeItem.estado = 'OFF';
+          v.codigoAsignado = codeItem.codigo;
+          codigosAsignadosAhora.push(codeItem);
+        }
+      }
+    });
+
+    if (codigosAsignadosAhora.length > 0) {
+      saveLocal();
+      if (typeof renderInventoryCodigos === 'function') renderInventoryCodigos();
+    }
+
+    ventasDelPedido.forEach((v) => {
       const precioJuego = v.venta || v.price || 0;
       totalPedido += precioJuego;
 
-      // Generar bloque usando la plantilla editable
-      let bloqueJuego = plantillaBloque
-        .replace(/{JUEGO_NOMBRE}/g, gameNombre)
-        .replace(/{TIPO_CUENTA}/g, v.tipo_cuenta || 'Digital')
-        .replace(/{CORREO}/g, gameCorreo)
-        .replace(/{PASS}/g, gamePass)
-        .replace(/{CODIGO_2FA}/g, game2FA !== 'N/A' ? game2FA : '---')
-        .replace(/{PRECIO_JUEGO}/g, formatCOP(precioJuego));
+      let bloqueJuego = '';
+
+      if (v.productType === 'codigo') {
+        // Bloque especial para códigos PSN
+        const pin = v.codigoAsignado || '---';
+        const denom = v.codigoDenom ? `${v.codigoDenom}us` : 'Código PSN';
+        bloqueJuego = `🎟️ Código PSN ${denom}\n   PIN: ${pin}\n   Precio: ${formatCOP(precioJuego)}`;
+      } else {
+        const dataInv = getInventoryItemData(v);
+        let gameCorreo = dataInv.cCorreo;
+        let gamePass = dataInv.cPass;
+        let game2FA = dataInv.c2fa;
+        let gameNombre = dataInv.jNombre;
+
+        bloqueJuego = plantillaBloque
+          .replace(/{JUEGO_NOMBRE}/g, gameNombre)
+          .replace(/{TIPO_CUENTA}/g, v.tipo_cuenta || 'Digital')
+          .replace(/{CORREO}/g, gameCorreo)
+          .replace(/{PASS}/g, gamePass)
+          .replace(/{CODIGO_2FA}/g, game2FA !== 'N/A' ? game2FA : '---')
+          .replace(/{PRECIO_JUEGO}/g, formatCOP(precioJuego));
+      }
 
       bloquesJuegos += `\n${bloqueJuego}\n`;
     });
@@ -5362,9 +5647,308 @@ function renderRankingAsesores() {
   });
 }
 
-function abrirModalSorteo() {
-  showToast('🎉 Funcionalidad de Sorteos — próximamente disponible');
+/* ════════════════════════════════════════ */
+/* SISTEMA DE LISTAS DE CLIENTES            */
+/* ════════════════════════════════════════ */
+
+function abrirModalSorteo() { abrirModalCrearLista(); }
+
+function abrirModalCrearLista() {
+  // Construir el modal dinámico premium
+  let overlay = document.getElementById('crearListaOverlay');
+  if (overlay) overlay.remove();
+
+  const listas = AppState.listas || [];
+  const listaItems = listas.length === 0
+    ? '<p style="color:var(--text-muted);font-size:0.82rem;margin:0;">No hay listas creadas aún.</p>'
+    : listas.map(l => `
+        <div style="display:flex;align-items:center;justify-content:space-between;
+             background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
+             border-radius:8px;padding:8px 12px;margin-bottom:6px;">
+          <span style="font-weight:600;color:#fff;">${l.nombre}</span>
+          <button onclick="eliminarListaNombrada('${l.id}')"
+            style="background:rgba(255,71,87,0.15);border:1px solid rgba(255,71,87,0.3);
+                   border-radius:6px;color:#ff4757;padding:3px 10px;cursor:pointer;font-size:0.78rem;">
+            Eliminar
+          </button>
+        </div>`).join('');
+
+  overlay = document.createElement('div');
+  overlay.id = 'crearListaOverlay';
+  overlay.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);
+    z-index:9999;display:flex;align-items:center;justify-content:center;`;
+  overlay.innerHTML = `
+    <div style="background:#1a1f2e;border:1px solid rgba(255,255,255,0.12);border-radius:18px;
+                padding:2rem;width:420px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+      <div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:1.5rem;">
+        <div style="width:48px;height:48px;border-radius:12px;background:rgba(0,198,255,0.15);
+             border:1px solid rgba(0,198,255,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i data-lucide="list-plus" style="width:22px;height:22px;color:var(--accent-cyan);"></i>
+        </div>
+        <div>
+          <h3 style="margin:0 0 4px;color:#fff;font-size:1.1rem;">Gestionar Listas</h3>
+          <p style="margin:0;color:var(--text-muted);font-size:0.85rem;">Crea listas para organizar tus clientes por categoría.</p>
+        </div>
+      </div>
+      
+      <div style="margin-bottom:1rem;">
+        <div style="max-height:180px;overflow-y:auto;margin-bottom:12px;" id="listasExistentes">
+          ${listaItems}
+        </div>
+        <label style="display:block;font-size:0.88rem;color:var(--text-muted);margin-bottom:6px;">Nombre de la nueva lista:</label>
+        <input id="inputNuevaLista" type="text" placeholder="Ej: VIP, Espera, Potenciales..."
+          style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.06);
+                 border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#fff;
+                 padding:10px 14px;font-size:0.9rem;outline:none;"
+          onfocus="this.style.borderColor='var(--accent-cyan)'"
+          onblur="this.style.borderColor='rgba(255,255,255,0.15)'"
+          onkeydown="if(event.key==='Enter') confirmarCrearLista()">
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:1.5rem;">
+        <button onclick="document.getElementById('crearListaOverlay').remove()"
+          style="padding:10px 22px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);
+                 background:transparent;color:var(--text-muted);cursor:pointer;font-size:0.88rem;">
+          Cancelar
+        </button>
+        <button onclick="confirmarCrearLista()"
+          style="padding:10px 24px;border-radius:10px;border:none;
+                 background:var(--accent-cyan);color:#000;font-weight:700;
+                 cursor:pointer;font-size:0.88rem;letter-spacing:0.5px;">
+          ACEPTAR
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  if (window.lucide) window.lucide.createIcons();
+  setTimeout(() => { const inp = document.getElementById('inputNuevaLista'); if (inp) inp.focus(); }, 100);
 }
+
+function confirmarCrearLista() {
+  const inp = document.getElementById('inputNuevaLista');
+  if (!inp) return;
+  const nombre = inp.value.trim();
+  if (!nombre) { inp.style.borderColor = '#ff4757'; inp.focus(); return; }
+
+  if (!AppState.listas) AppState.listas = [];
+  const existe = AppState.listas.find(l => l.nombre.toLowerCase() === nombre.toLowerCase());
+  if (existe) { showToast('Ya existe una lista con ese nombre', 'warning'); return; }
+
+  AppState.listas.push({ id: Date.now().toString(), nombre });
+  saveLocal();
+  logEvent('Analytics: Lista Creada', `Nombre: ${nombre}`);
+  showToast(`✅ Lista "${nombre}" creada`);
+  // Actualizar modal sin cerrarlo para poder crear más
+  abrirModalCrearLista();
+  // Re-renderizar tabla historial para que aparezca en el dropdown
+  if (window._clientsHistoryStaticData) renderClientsHistoryTable(window._clientsHistoryStaticData);
+}
+
+function eliminarListaNombrada(listaId) {
+  if (!AppState.listas) return;
+  const lista = AppState.listas.find(l => l.id === listaId);
+  if (!lista) return;
+  AppState.listas = AppState.listas.filter(l => l.id !== listaId);
+  // Quitar clientes asignados a esa lista
+  if (AppState.clientsListas) {
+    Object.keys(AppState.clientsListas).forEach(k => {
+      if (AppState.clientsListas[k] === listaId) delete AppState.clientsListas[k];
+    });
+  }
+  saveLocal();
+  logEvent('Analytics: Lista Eliminada', `Nombre: ${lista.nombre}`);
+  showToast(`Lista "${lista.nombre}" eliminada`, 'info');
+  abrirModalCrearLista();
+  if (window._clientsHistoryStaticData) renderClientsHistoryTable(window._clientsHistoryStaticData);
+}
+
+function asignarClienteALista(nombreKey, listaId) {
+  if (!AppState.clientsListas) AppState.clientsListas = {};
+  if (listaId) {
+    AppState.clientsListas[nombreKey] = listaId;
+  } else {
+    delete AppState.clientsListas[nombreKey];
+  }
+  saveLocal();
+}
+
+function renderClientsHistoryTable(data) {
+  const tbody = document.getElementById('clientsBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 2rem; color: var(--text-muted)">No se encontraron clientes con esos parámetros.</td></tr>`;
+    return;
+  }
+
+  const listas = AppState.listas || [];
+
+  data.forEach((c, index) => {
+    let fidelidadStr = '', fidelidadColor = '', fidelidadBg = '';
+    if (c.cantidadJuegos === 1) { fidelidadStr = 'Nuevo'; fidelidadColor = 'var(--text-muted)'; fidelidadBg = 'rgba(255,255,255,0.05)'; }
+    else if (c.cantidadJuegos >= 2 && c.cantidadJuegos <= 5) { fidelidadStr = 'Recurrente'; fidelidadColor = '#39d6f9'; fidelidadBg = 'rgba(57,214,249,0.1)'; }
+    else if (c.cantidadJuegos >= 6 && c.cantidadJuegos <= 13) { fidelidadStr = 'Bronce'; fidelidadColor = '#cd7f32'; fidelidadBg = 'rgba(205,127,50,0.1)'; }
+    else if (c.cantidadJuegos >= 14 && c.cantidadJuegos <= 21) { fidelidadStr = 'Plata'; fidelidadColor = '#c0c0c0'; fidelidadBg = 'rgba(192,192,192,0.1)'; }
+    else { fidelidadStr = 'VIP 👑'; fidelidadColor = '#ffbb00'; fidelidadBg = 'rgba(255,187,0,0.1)'; }
+
+    let consolaPref = '--';
+    if (c.conteoPS4 > c.conteoPS5) consolaPref = '<span style="color:var(--accent-cyan); font-weight:600">PS4</span>';
+    else if (c.conteoPS5 > c.conteoPS4) consolaPref = '<span style="color:var(--accent-purple); font-weight:600">PS5</span>';
+    else if (c.conteoPS4 > 0 && c.conteoPS4 === c.conteoPS5) consolaPref = 'Ambas (PS4/PS5)';
+
+    const nombreKey = (c.nombre || '').toLowerCase();
+    const listaAsignadaId = (AppState.clientsListas || {})[nombreKey] || '';
+
+    const opcionesLista = `<option value="">— Sin lista —</option>` +
+      listas.map(l => `<option value="${l.id}" ${l.id === listaAsignadaId ? 'selected' : ''}>${l.nombre}</option>`).join('');
+
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.innerHTML = `
+      <td>${index + 1}</td>
+      <td style="font-weight:600; color:#fff">${c.nombre || 'Sin Nombre'}</td>
+      <td>${c.cc || '--'}</td>
+      <td>${c.ciudad || '--'}</td>
+      <td style="font-weight:bold; color:var(--accent-green)">$${c.totalComprasCOP.toLocaleString('es-CO')}</td>
+      <td><div style="font-size:0.9rem;font-weight:500;color:var(--text-light);">${c.celular || '--'}</div></td>
+      <td>${consolaPref}</td>
+      <td>
+        <div style="display:inline-flex;align-items:center;gap:6px;background:${fidelidadBg};color:${fidelidadColor};padding:4px 10px;border-radius:12px;font-size:0.8rem;font-weight:700;border:1px solid ${fidelidadColor}40">
+          ${fidelidadStr} <span style="opacity:0.6;font-weight:normal;font-size:0.75rem">(${c.cantidadJuegos} vtas)</span>
+        </div>
+      </td>
+      <td>
+        <select onchange="asignarClienteALista('${nombreKey}', this.value)"
+          style="background:#0f1521;border:1px solid rgba(0,198,255,0.35);
+                 border-radius:8px;color:#fff;padding:6px 10px;font-size:0.82rem;
+                 cursor:pointer;outline:none;min-width:130px;
+                 -webkit-appearance:auto;appearance:auto;">
+          ${opcionesLista}
+        </select>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ── Tabs Historial Cliente / Listas ── */
+
+let _activeClientTab = 'historial';
+
+function switchClientTab(tab) {
+  _activeClientTab = tab;
+  const btnH = document.getElementById('tabBtnHistorial');
+  const btnL = document.getElementById('tabBtnListas');
+  const viewH = document.getElementById('viewHistorialCliente');
+  const viewL = document.getElementById('viewListas');
+  const title = document.getElementById('clientsSectionTitle');
+
+  if (tab === 'historial') {
+    if (btnH) { btnH.style.background = 'var(--accent-cyan)'; btnH.style.color = '#000'; btnH.style.boxShadow = '0 2px 8px rgba(0,198,255,0.3)'; }
+    if (btnL) { btnL.style.background = 'transparent'; btnL.style.color = 'var(--text-muted)'; btnL.style.boxShadow = 'none'; }
+    if (viewH) viewH.style.display = '';
+    if (viewL) viewL.style.display = 'none';
+    if (title) title.textContent = 'Historial de Clientes';
+  } else {
+    if (btnL) { btnL.style.background = 'var(--accent-cyan)'; btnL.style.color = '#000'; btnL.style.boxShadow = '0 2px 8px rgba(0,198,255,0.3)'; }
+    if (btnH) { btnH.style.background = 'transparent'; btnH.style.color = 'var(--text-muted)'; btnH.style.boxShadow = 'none'; }
+    if (viewL) viewL.style.display = '';
+    if (viewH) viewH.style.display = 'none';
+    if (title) title.textContent = 'Listas de Clientes';
+    renderListas();
+  }
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function renderListas() {
+  const tbody = document.getElementById('listasBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const listas = AppState.listas || [];
+  const clientsListas = AppState.clientsListas || {};
+  const allClients = window._clientsHistoryStaticData || [];
+
+  if (listas.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted)">No hay listas creadas. Usa el botón <strong>Crear Lista</strong> para empezar.</td></tr>';
+    return;
+  }
+
+  let hasContent = false;
+
+  listas.forEach(lista => {
+    // Clientes asignados a esta lista
+    const clientesEnLista = allClients.filter(c => {
+      const key = (c.nombre || '').toLowerCase();
+      return clientsListas[key] === lista.id;
+    });
+
+    // Fila separadora / encabezado de lista
+    const trHeader = document.createElement('tr');
+    trHeader.innerHTML = `
+      <td colspan="9" style="
+        background:rgba(0,198,255,0.08);border-left:3px solid var(--accent-cyan);
+        padding:10px 16px;font-weight:700;color:var(--accent-cyan);font-size:0.9rem;
+        letter-spacing:0.5px;">
+        <i data-lucide="list" style="width:14px;height:14px;margin-right:6px;vertical-align:middle;"></i>
+        ${lista.nombre}
+        <span style="margin-left:10px;font-size:0.78rem;font-weight:normal;color:var(--text-muted);">
+          ${clientesEnLista.length} cliente${clientesEnLista.length !== 1 ? 's' : ''}
+        </span>
+      </td>`;
+    tbody.appendChild(trHeader);
+    hasContent = true;
+
+    if (clientesEnLista.length === 0) {
+      const trEmpty = document.createElement('tr');
+      trEmpty.innerHTML = `<td colspan="9" style="text-align:center;padding:12px;color:var(--text-muted);font-size:0.82rem;font-style:italic;">Sin clientes en esta lista aún.</td>`;
+      tbody.appendChild(trEmpty);
+      return;
+    }
+
+    clientesEnLista.forEach((c, idx) => {
+      let fidelidadStr = '', fidelidadColor = '', fidelidadBg = '';
+      if (c.cantidadJuegos === 1) { fidelidadStr = 'Nuevo'; fidelidadColor = 'var(--text-muted)'; fidelidadBg = 'rgba(255,255,255,0.05)'; }
+      else if (c.cantidadJuegos >= 2 && c.cantidadJuegos <= 5) { fidelidadStr = 'Recurrente'; fidelidadColor = '#39d6f9'; fidelidadBg = 'rgba(57,214,249,0.1)'; }
+      else if (c.cantidadJuegos >= 6 && c.cantidadJuegos <= 13) { fidelidadStr = 'Bronce'; fidelidadColor = '#cd7f32'; fidelidadBg = 'rgba(205,127,50,0.1)'; }
+      else if (c.cantidadJuegos >= 14 && c.cantidadJuegos <= 21) { fidelidadStr = 'Plata'; fidelidadColor = '#c0c0c0'; fidelidadBg = 'rgba(192,192,192,0.1)'; }
+      else { fidelidadStr = 'VIP 👑'; fidelidadColor = '#ffbb00'; fidelidadBg = 'rgba(255,187,0,0.1)'; }
+
+      let consolaPref = '--';
+      if (c.conteoPS4 > c.conteoPS5) consolaPref = '<span style="color:var(--accent-cyan);font-weight:600">PS4</span>';
+      else if (c.conteoPS5 > c.conteoPS4) consolaPref = '<span style="color:var(--accent-purple);font-weight:600">PS5</span>';
+      else if (c.conteoPS4 > 0 && c.conteoPS4 === c.conteoPS5) consolaPref = 'Ambas';
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${idx + 1}</td>
+        <td style="font-weight:600;color:#fff">${c.nombre || 'Sin Nombre'}</td>
+        <td>${c.cc || '--'}</td>
+        <td>${c.ciudad || '--'}</td>
+        <td style="font-weight:bold;color:var(--accent-green)">$${c.totalComprasCOP.toLocaleString('es-CO')}</td>
+        <td>${c.celular || '--'}</td>
+        <td>${consolaPref}</td>
+        <td>
+          <div style="display:inline-flex;align-items:center;gap:6px;background:${fidelidadBg};color:${fidelidadColor};padding:4px 10px;border-radius:12px;font-size:0.8rem;font-weight:700;border:1px solid ${fidelidadColor}40">
+            ${fidelidadStr} <span style="opacity:0.6;font-weight:normal;font-size:0.75rem">(${c.cantidadJuegos} vtas)</span>
+          </div>
+        </td>
+        <td style="color:var(--accent-cyan);font-weight:600;font-size:0.85rem;">${lista.nombre}</td>`;
+      tbody.appendChild(tr);
+    });
+  });
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function guardarLista(nombreKey, valor) {
+  if (!AppState.clientsListas) AppState.clientsListas = {};
+  AppState.clientsListas[nombreKey] = valor.trim();
+  saveLocal();
+}
+
 
 function renderClientHistory() {
   const tbody = document.getElementById('clientsBody');
@@ -5434,76 +6018,7 @@ function renderClientHistory() {
   renderClientsHistoryTable(clientsList);
 }
 
-function renderClientsHistoryTable(data) {
-  const tbody = document.getElementById('clientsBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
 
-  if (data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 2rem; color: var(--text-muted)">No se encontraron clientes con esos parámetros.</td></tr>';
-    return;
-  }
-
-  data.forEach((c, index) => {
-    // Determinar Nivel de Fidelidad (Basado en la cantidad total de COMPRAS individualizadas)
-    // Nuevo (1 compra), Recurrente (2-5 compras), Bronce (6-13 compras), Plata (14-21 compras), VIP (22-29 en adelante)
-    let fidelidadStr = '';
-    let fidelidadColor = '';
-    let fidelidadBg = '';
-
-    if (c.cantidadJuegos === 1) {
-      fidelidadStr = 'Nuevo';
-      fidelidadColor = 'var(--text-muted)';
-      fidelidadBg = 'rgba(255,255,255,0.05)';
-    } else if (c.cantidadJuegos >= 2 && c.cantidadJuegos <= 5) {
-      fidelidadStr = 'Recurrente';
-      fidelidadColor = '#39d6f9'; // accent-cyan
-      fidelidadBg = 'rgba(57, 214, 249, 0.1)';
-    } else if (c.cantidadJuegos >= 6 && c.cantidadJuegos <= 13) {
-      fidelidadStr = 'Bronce';
-      fidelidadColor = '#cd7f32';
-      fidelidadBg = 'rgba(205, 127, 50, 0.1)';
-    } else if (c.cantidadJuegos >= 14 && c.cantidadJuegos <= 21) {
-      fidelidadStr = 'Plata';
-      fidelidadColor = '#c0c0c0';
-      fidelidadBg = 'rgba(192, 192, 192, 0.1)';
-    } else {
-      fidelidadStr = 'VIP 👑';
-      fidelidadColor = '#ffbb00';
-      fidelidadBg = 'rgba(255, 187, 0, 0.1)';
-    }
-
-    // Determinar consola preferida
-    let consolaPref = '--';
-    if (c.conteoPS4 > c.conteoPS5) consolaPref = '<span style="color:var(--accent-cyan); font-weight:600">PS4</span>';
-    else if (c.conteoPS5 > c.conteoPS4) consolaPref = '<span style="color:var(--accent-purple); font-weight:600">PS5</span>';
-    else if (c.conteoPS4 > 0 && c.conteoPS4 === c.conteoPS5) consolaPref = 'Ambas (PS4/PS5)';
-
-    const tr = document.createElement('tr');
-    tr.style.cursor = 'pointer'; // Para posible futura accion
-    tr.innerHTML = `
-      <td>${index + 1}</td>
-      <td style="font-weight:600; color:#fff">${c.nombre || 'Sin Nombre'}</td>
-      <td>${c.cc || '--'}</td>
-      <td>${c.ciudad || '--'}</td>
-      <td style="font-weight:bold; color:var(--accent-green)">
-        $${c.totalComprasCOP.toLocaleString('es-CO')}
-      </td>
-      <td>
-         <div style="font-size:0.9rem; font-weight:500; color:var(--text-light); letter-spacing:0.5px;">
-            ${c.celular || '--'}
-         </div>
-      </td>
-      <td>${consolaPref}</td>
-      <td>
-        <div style="display:inline-flex; align-items:center; gap:6px; background:${fidelidadBg}; color:${fidelidadColor}; padding:4px 10px; border-radius:12px; font-size:0.8rem; font-weight:700; border: 1px solid ${fidelidadColor}40">
-           ${fidelidadStr} <span style="opacity:0.6; font-weight:normal; font-size:0.75rem">(${c.cantidadJuegos} vtas)</span>
-        </div>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
 
 function filterClients(searchText) {
   if (!window._clientsHistoryStaticData) return;
@@ -5621,7 +6136,7 @@ function savePaqueteInventory() {
         nombre, correo, correo_hosting: correoHosting, password_hosting: passHosting, password, codigo2fa, fecha, fechaCuenta, costoUsd, trm, costoCop, pais, juegos,
         es_ps4, es_ps5, tipo_version, cupos_ps4_primaria, cupos_ps4_secundaria, cupos_ps5_primaria, cupos_ps5_secundaria
       };
-      logEvent('Inventario Paquetes: Edición', `ID: ${id} | Paquete: ${nombre}`);
+      logEvent('Inventario Paquetes: Edición', `ID: ${editId} | Paquete: ${nombre}`);
     }
   } else {
     const newId = Date.now();
@@ -5629,7 +6144,7 @@ function savePaqueteInventory() {
       id: newId, nombre, correo, correo_hosting: correoHosting, password_hosting: passHosting, password, codigo2fa, fecha, fechaCuenta, costoUsd, trm, costoCop, pais, juegos, estado: 'OFF',
       es_ps4, es_ps5, tipo_version, cupos_ps4_primaria, cupos_ps4_secundaria, cupos_ps5_primaria, cupos_ps5_secundaria
     });
-    logEvent('Inventario Paquetes: Nuevo', `ID: ${nuevoP.id} | Paquete: ${nombre}`);
+    logEvent('Inventario Paquetes: Nuevo', `ID: ${newId} | Paquete: ${nombre}`);
   }
 
   closeModalPaquete();
@@ -5722,8 +6237,10 @@ function renderInventoryPaquetes() {
               <img src="https://flagcdn.com/w20/${pais === 'TUR' ? 'tr' : 'us'}.png" style="width:16px; height:auto; border-radius:2px; display:inline-block;" alt="${pais}">
               ${pais === 'TUR' ? 'TUR' : 'USA'}
             </span>
-            <span style="font-size:0.65rem; font-weight:900; background:rgba(0,255,136,0.1); padding:4px 8px; border-radius:8px; color:var(--accent-green); border:1px solid rgba(0,255,136,0.3); line-height:1;" title="Juegos Incluidos">
-              ${juegosResumen}
+            <span class="badge-juegos-premium" 
+                  style="font-size:0.65rem; font-weight:900; background:rgba(0,255,136,0.1); padding:4px 8px; border-radius:8px; color:var(--accent-green); border:1px solid rgba(0,255,136,0.3); line-height:1; cursor:help;" 
+                  title="🎮 Juegos incluidos:&#10;${(p.juegos || 'Sin juegos').replace(/\n/g, '&#10;')}">
+              <i data-lucide="gamepad-2" style="width:10px; height:10px; margin-right:4px;"></i>${juegosResumen}
             </span>
           </div>
           <div style="margin-top:8px; font-size:0.7rem; display:flex; flex-direction:column; gap:2px;">
@@ -5870,7 +6387,7 @@ function saveMembresiaInventory() {
         tipo, correo, correo_hosting: correoHosting, password_hosting: passHosting, password, codigo2fa, fecha, fechaCuenta, costoUsd, trm, costoCop, pais,
         es_ps4, es_ps5, tipo_version, cupos_ps4_primaria, cupos_ps4_secundaria, cupos_ps5_primaria, cupos_ps5_secundaria
       };
-      logEvent('Inventario Membresías: Edición', `ID: ${id} | Tipo: ${tipo}`);
+      logEvent('Inventario Membresías: Edición', `ID: ${editId} | Tipo: ${tipo}`);
     }
   } else {
     const newId = Date.now();
@@ -5878,7 +6395,7 @@ function saveMembresiaInventory() {
       id: newId, tipo, correo, correo_hosting: correoHosting, password_hosting: passHosting, password, codigo2fa, fecha, fechaCuenta, costoUsd, trm, costoCop, pais, estado: 'OFF',
       es_ps4, es_ps5, tipo_version, cupos_ps4_primaria, cupos_ps4_secundaria, cupos_ps5_primaria, cupos_ps5_secundaria
     });
-    logEvent('Inventario Membresías: Nueva', `ID: ${nuevoM.id} | Tipo: ${tipo}`);
+    logEvent('Inventario Membresías: Nueva', `ID: ${newId} | Tipo: ${tipo}`);
   }
 
   closeModalMembresia();
