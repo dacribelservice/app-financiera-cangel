@@ -1,5 +1,5 @@
 # 🧠 BITÁCORA DE CONTEXTO: CANGEL GAMES APP
-**Última Actualización:** 11/03/2026 (V12.1)
+**Última Actualización:** 11/03/2026 (V12.2)
 
 Este documento es el cerebro a largo plazo de la aplicación. Describe la lógica arquitectónica y el estado de los módulos para que cualquier nueva sesión de Antigravity (y el usuario) no pierda el contexto del código.
 
@@ -12,6 +12,10 @@ Este documento es el cerebro a largo plazo de la aplicación. Describe la lógic
 - [x] Fix sold PSN accounts not appearing in the "Cuentas PSN" table by updating `renderCuentasPSN` to check for active sales.
 
 ### 📝 LOG DE VERSIONES
+
+#### [V12.2] - 11/03/2026
+- **Sincronización Total de Listas:** Implementación bidireccional entre Ventas y Analytics. El campo "Lista" ahora es persistente y retroactivo, sincronizando todas las ventas del cliente al cambiar su lista en Analytics.
+- **Estandarización de Datos:** Transición de nombres de lista simples a IDs persistentes en `AppState.listas` para evitar duplicidad o errores por renombrado.
 
 #### [V12.1] - 11/03/2026
 - **Fix Ventas Compartidas (Sincronización):** Corrección crítica del inventario. Ahora las ventas con dos asesoras solo descuentan **1 cupo** de stock (ignorando registros con `isPartiallyPaid: true`), eliminando el error de `-1 PRI`.

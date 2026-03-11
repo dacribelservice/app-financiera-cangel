@@ -1434,7 +1434,11 @@ function renderVentas() {
         <td>${rep.celular || ''}</td>
         <td>${rep.pago || ''}</td>
         <td>${rep.tipo_cliente || ''}</td>
-        <td>${rep.lista || ''}</td>
+        <td>${(() => {
+          if (!rep.lista) return '';
+          const found = (AppState.listas || []).find(l => l.id === rep.lista || l.nombre === rep.lista);
+          return found ? found.nombre : rep.lista;
+        })()}</td>
         <td>
           <div style="display:flex; gap:5px; justify-content:center;">
             <button class="action-btn-premium" style="background:rgba(57, 214, 249, 0.15); color:var(--accent-cyan); width:26px; height:26px; padding:0; font-size:0.7rem;" onclick="verDetallesVenta('${rep.id}')" title="Ver Detalles">
@@ -2026,7 +2030,7 @@ function openModalVenta(id = null) {
       if (listaSelect) {
         listaSelect.innerHTML = '<option value="">-- Sin lista --</option>';
         (AppState.listas || []).forEach(L => {
-          listaSelect.innerHTML += `<option value="${L.nombre}">${L.nombre}</option>`;
+          listaSelect.innerHTML += `<option value="${L.id}">${L.nombre}</option>`;
         });
         listaSelect.value = v.lista || '';
       }
@@ -2073,7 +2077,7 @@ function openModalVenta(id = null) {
     if (listaSelect) {
       listaSelect.innerHTML = '<option value="">-- Sin lista --</option>';
       (AppState.listas || []).forEach(L => {
-        listaSelect.innerHTML += `<option value="${L.nombre}">${L.nombre}</option>`;
+        listaSelect.innerHTML += `<option value="${L.id}">${L.nombre}</option>`;
       });
       listaSelect.value = '';
     }
@@ -2576,11 +2580,22 @@ function saveVentaDataForm() {
       if (typeof logEvent === 'function') {
         logEvent('Venta Modificada', `ID Venta: ${vId} | Cliente: ${commonData.correo} | Producto: ${pType}`);
       }
+      
+      // Sincronizar lista con Analytics (AppState.clientsListas)
+      if (commonData.nombre_cliente) {
+        asignarClienteALista(commonData.nombre_cliente.toLowerCase(), commonData.lista);
+      }
+
       showToast('✅ Venta actualizada correctamente');
     }
   } else {
     // Registro múltiple
     let countSaved = 0;
+    
+    // Sincronizar lista con Analytics al inicio (común para todos los grupos)
+    if (commonData.nombre_cliente && commonData.lista) {
+      asignarClienteALista(commonData.nombre_cliente.toLowerCase(), commonData.lista);
+    }
     rows.forEach(row => {
       const pType = row.querySelector('.row-product-type') ? row.querySelector('.row-product-type').value : 'game';
       const precio = parseFloat(row.querySelector('.row-precio').value) || 0;
@@ -6555,6 +6570,16 @@ function asignarClienteALista(nombreKey, listaId) {
   } else {
     delete AppState.clientsListas[nombreKey];
   }
+  
+  // Sincronización retroactiva: actualizar ventas existentes del cliente
+  if (AppState.sales && AppState.sales.length > 0) {
+    AppState.sales.forEach(v => {
+      if ((v.nombre_cliente || '').toLowerCase() === nombreKey) {
+        v.lista = listaId;
+      }
+    });
+  }
+
   saveLocal();
 }
 
