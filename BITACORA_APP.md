@@ -1,18 +1,28 @@
 # 🧠 BITÁCORA DE CONTEXTO: CANGEL GAMES APP
-**Última Actualización:** 10/03/2026 (V11.8)
+**Última Actualización:** 10/03/2026 (V12.0)
 
 Este documento es el cerebro a largo plazo de la aplicación. Describe la lógica arquitectónica y el estado de los módulos para que cualquier nueva sesión de Antigravity (y el usuario) no pierda el contexto del código.
 
 ---
 
 ### Bug Fixes
+- [x] Fix order of properties in sales save logic to prevent seller/price duplication issues.
 - [x] Fix overlap of Facturación and Cuentas PSN tables in Ventas module due to missing `</table>` tag
 - [x] Refactor native `confirm()` to custom modal `showDeleteConfirmModal()` for deleting Paquetes and Membresías
 - [x] Fix sold PSN accounts not appearing in the "Cuentas PSN" table by updating `renderCuentasPSN` to check for active sales.
-- [x] Fix orphaned "ghost games" in red by including `idealStock` and `catalog` in the data cleanup process.
-- [x] Fix "Guardar Paquete" and "Guardar Membresía" buttons not working due to undefined variable references in `logEvent`.
 
 ### 📝 LOG DE VERSIONES
+
+#### [V12.0] - 10/03/2026
+- **Ventas Compartidas (Dual Seller):** Implementada la capacidad de asignar dos asesoras a una misma venta. El sistema divide automáticamente el precio al 50/50 y genera dos registros de venta vinculados por el mismo ID de transacción, sin duplicar la salida de inventario.
+- **Listas Dinámicas en Ventas:** El campo manual de "Lista" fue reemplazado por un dropdown que se alimenta en tiempo real de las listas creadas en el módulo de Analytics (`AppState.listas`).
+- **Lógica de Códigos PSN Split:** Se extendió el sistema de división de ventas también para los códigos PSN, asegurando que cada código vendido sea acreditado proporcionalmente a ambas vendedoras si es una co-venta.
+
+#### [V11.9] - 10/03/2026
+- **Anulación de Facturas:** Implementación de la funcionalidad para anular y reactivar facturas o pedidos completos en el módulo de Ventas. Las facturas anuladas se visualizan en rojo con tachado, se excluyen de todos los cálculos financieros (Dashboard, Balance, Métricas de Ventas) y liberan automáticamente los slots de inventario ocupados.
+- **Notificaciones 2FA:** Se agregó una campana de notificación en la tabla de "Cuentas PSN" que alerta sobre cuentas con 3 o menos códigos de verificación de 2 pasos disponibles. Incluye un badge dinámico y un modal detallado para ver las cuentas afectadas.
+- **Filtro en Bitácora:** Se añadió un interruptor en el visor de eventos de Bitácora para mostrar u ocultar selectivamente los eventos de anulación y reactivación de facturas, facilitando el enfoque en otras acciones operativas.
+- **Permisos:** Nuevo permiso `p_ventas_anular` integrado en el sistema de gestión de usuarios para controlar quién puede realizar anulaciones.
 
 #### [V11.8] - 10/03/2026
 - **Estandarización de Puerto:** Se ha validado que la aplicación opera exclusivamente a través del puerto 3000. Se han eliminado residuos de configuraciones anteriores y se ha generado el enlace de acceso oficial: `http://localhost:3000/`.

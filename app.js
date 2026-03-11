@@ -24,6 +24,8 @@ const AppState = {
   clients: [],
   paquetes: [],
   membresias: [],
+  xboxInventory: [],
+  physicalInventory: [],
 
   cart: [],
   charts: {},
@@ -269,7 +271,9 @@ function switchTab(tabName) {
 /* ═══════════════════════════════════════ */
 
 function updateDashboard() {
-  const ingresos = AppState.sales.reduce((sum, v) => sum + (parseFloat(v.venta) || parseFloat(v.precio) || 0), 0);
+  const ingresos = AppState.sales
+    .filter(v => !v.esta_anulada)
+    .reduce((sum, v) => sum + (parseFloat(v.venta) || parseFloat(v.precio) || 0), 0);
 
   // Todo sumado en COP
   const costosJuegos = AppState.inventoryGames.reduce((sum, g) => sum + (parseFloat(g.costoCop) || 0), 0);
@@ -324,6 +328,7 @@ function renderTop5() {
 
   const counts = {};
   AppState.sales.forEach(v => {
+    if (v.esta_anulada) return; // Omitir anuladas en ranking top 5
     counts[v.juego] = (counts[v.juego] || 0) + 1;
   });
 
@@ -1138,10 +1143,14 @@ function renderCuentasPSN() {
         const codesRaw = c.cod_2_pasos || c.codigo2fa || '';
         const codes = codesRaw.split('\n').map(x => x.trim()).filter(x => x.length > 0);
         const count = codes.length;
+        let badgeClass = '';
+        if (count === 0) badgeClass = 'zero';
+        else if (count <= 3) badgeClass = 'low';
+
         return `
-            <div class="badge-2fa ${count === 0 ? 'zero' : ''}" 
+            <div class="badge-2fa ${badgeClass}" 
                  onclick="${count > 0 ? `open2FAModal('${c.id}', '${c._itemType}')` : ''}"
-                 title="${count > 0 ? 'Ver códigos' : 'Sin códigos'}">
+                 title="${count > 0 ? (count <= 3 ? 'Pocos códigos restantes' : 'Ver códigos') : 'Sin códigos'}">
               ${count}
             </div>
           `;
@@ -1167,6 +1176,7 @@ function renderCuentasPSN() {
   });
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
+  update2FABellBadge();
 }
 
 function updateCuentaPsnStatus(id, newStatus) {
@@ -1336,6 +1346,10 @@ function renderVentas() {
     const rowNum = index + 1;
     const rep = grupo.representante; // datos de cliente vienen del representante
     const tr = document.createElement('tr');
+    
+    // Si todo el grupo está anulado, pintar la fila de rojo
+    const isAnulado = grupo.ventas.every(v => v.esta_anulada);
+    if (isAnulado) tr.classList.add('row-annulled');
 
     if (grupo.tipo === 'multi') {
       // ── Celda de juegos apilados ──────────────────────────────────────
@@ -1375,6 +1389,7 @@ function renderVentas() {
 
       const canEdit = hasAccesoTotal || (user.permisos && user.permisos.p_ventas_editar === true);
       const canDelete = hasAccesoTotal || (user.permisos && user.permisos.p_ventas_eliminar === true);
+      const canAnnul = hasAccesoTotal || (user.permisos && user.permisos.p_ventas_anular === true);
 
       tr.innerHTML = `
         <th class="row-number">${rowNum}</th>
@@ -1410,6 +1425,10 @@ function renderVentas() {
             <button class="action-btn-premium delete-btn" style="width:26px; height:26px; padding:0; font-size:0.7rem;" onclick="eliminarPedidoCompleto('${rep.transaction_id}')" title="Eliminar">
               <i data-lucide="trash-2" class="minimalist-icon" style="width:14px; height:14px;"></i>
             </button>` : ''}
+            ${canAnnul ? `
+            <button class="action-btn-premium" style="background:rgba(239,68,68,0.15); color:#ef4444; width:26px; height:26px; padding:0; font-size:0.7rem;" onclick="anularPedidoCompleto('${rep.transaction_id}')" title="${isAnulado ? 'Reactivar' : 'Anular'}">
+              <i data-lucide="${isAnulado ? 'rotate-ccw' : 'ban'}" class="minimalist-icon" style="width:14px; height:14px;"></i>
+            </button>` : ''}
           </div>
         </td>
       `;
@@ -1426,6 +1445,7 @@ function renderVentas() {
 
       const canEdit = hasAccesoTotal || (user.permisos && user.permisos.p_ventas_editar === true);
       const canDelete = hasAccesoTotal || (user.permisos && user.permisos.p_ventas_eliminar === true);
+      const canAnnul = hasAccesoTotal || (user.permisos && user.permisos.p_ventas_anular === true);
 
       tr.innerHTML = `
         <th class="row-number">${rowNum}</th>
@@ -1460,6 +1480,10 @@ function renderVentas() {
             ${canDelete ? `
             <button class="action-btn-premium delete-btn" style="width:26px; height:26px; padding:0; font-size:0.7rem;" onclick="deleteVenta('${v.id}')" title="Eliminar">
               <i data-lucide="trash-2" class="minimalist-icon" style="width:14px; height:14px;"></i>
+            </button>` : ''}
+            ${canAnnul ? `
+            <button class="action-btn-premium" style="background:rgba(239,68,68,0.15); color:#ef4444; width:26px; height:26px; padding:0; font-size:0.7rem;" onclick="anularFactura('${v.id}')" title="${v.esta_anulada ? 'Reactivar' : 'Anular'}">
+              <i data-lucide="${v.esta_anulada ? 'rotate-ccw' : 'ban'}" class="minimalist-icon" style="width:14px; height:14px;"></i>
             </button>` : ''}
           </div>
         </td>
@@ -1523,7 +1547,7 @@ function updateVentasMetrics() {
   let totalMes = 0;
 
   AppState.sales.forEach(v => {
-    if (!v.fecha) return;
+    if (!v.fecha || v.esta_anulada) return; // Omitir anuladas en métricas
     const groupKey = v.transaction_id || `V-${v.id}`;
     const vMonth = getMonthPart(v.fecha);
 
@@ -1586,6 +1610,65 @@ function eliminarPedidoCompleto(transactionId) {
   });
 }
 
+function anularFactura(id) {
+  const user = AppState.currentUser;
+  const hasAccesoTotal = user.permisos && user.permisos.acceso_total === true;
+  const canAnnul = hasAccesoTotal || (user.permisos && user.permisos.p_ventas_anular === true);
+
+  if (!canAnnul) {
+    showToast("❌ No tienes permiso para anular facturas");
+    return;
+  }
+
+  const sale = AppState.sales.find(v => String(v.id) === String(id));
+  if (!sale) return;
+
+  const msg = sale.esta_anulada 
+    ? "¿Deseas REACTIVAR esta factura? Volverá a sumar a los totales." 
+    : "¿Deseas ANULAR esta factura? Dejará de sumar a las ventas.";
+
+  showDeleteConfirmModal(msg, () => {
+    sale.esta_anulada = !sale.esta_anulada;
+    saveLocal();
+    updateDashboard();
+    renderVentas();
+    if (typeof logEvent === 'function') {
+      logEvent(sale.esta_anulada ? 'Factura Anulada' : 'Factura Reactivada', `ID: ${id} | Juego: ${sale.juego}`);
+    }
+    showToast(sale.esta_anulada ? "🚫 Factura Anulada" : "✅ Factura Reactivada");
+  });
+}
+
+function anularPedidoCompleto(transactionId) {
+  const user = AppState.currentUser;
+  const hasAccesoTotal = user.permisos && user.permisos.acceso_total === true;
+  const canAnnul = hasAccesoTotal || (user.permisos && user.permisos.p_ventas_anular === true);
+
+  if (!canAnnul) {
+    showToast("❌ No tienes permiso para anular facturas");
+    return;
+  }
+  if (!transactionId) return;
+  const ventas = AppState.sales.filter(v => String(v.transaction_id) === String(transactionId));
+  if (ventas.length === 0) return;
+
+  const estaAnulado = ventas.every(v => v.esta_anulada);
+  const msg = estaAnulado 
+    ? "¿Deseas REACTIVAR este pedido completo?" 
+    : "¿Deseas ANULAR este pedido completo? Dejará de sumar a los totales.";
+
+  showDeleteConfirmModal(msg, () => {
+    ventas.forEach(v => v.esta_anulada = !estaAnulado);
+    saveLocal();
+    updateDashboard();
+    renderVentas();
+    if (typeof logEvent === 'function') {
+      logEvent(!estaAnulado ? 'Pedido Anulado' : 'Pedido Reactivado', `Transacción: ${transactionId} | Juegos: ${ventas.length}`);
+    }
+    showToast(!estaAnulado ? "🚫 Pedido Anulado" : "✅ Pedido Reactivado");
+  });
+}
+
 
 function getGameSlots(gameId) {
   const game = AppState.inventoryGames.find(g => String(g.id) === String(gameId));
@@ -1612,7 +1695,7 @@ function getGameSlots(gameId) {
   const used = { p_ps4: 0, s_ps4: 0, p_ps5: 0, s_ps5: 0 };
 
   AppState.sales.forEach(sale => {
-    if (String(sale.inventoryId) === String(game.id)) {
+    if (String(sale.inventoryId) === String(game.id) && !sale.esta_anulada) {
       if (sale.tipo_cuenta === 'Primaria PS4') used.p_ps4++;
       else if (sale.tipo_cuenta === 'Secundaria PS4') used.s_ps4++;
       else if (sale.tipo_cuenta === 'Primaria PS5') used.p_ps5++;
@@ -1642,7 +1725,7 @@ function getPaqueteSlots(paqueteId) {
   const used = { p_ps4: 0, s_ps4: 0, p_ps5: 0, s_ps5: 0 };
 
   AppState.sales.forEach(sale => {
-    if (String(sale.inventoryId) === String(p.id)) {
+    if (String(sale.inventoryId) === String(p.id) && !sale.esta_anulada) {
       if (sale.tipo_cuenta === 'Primaria PS4') used.p_ps4++;
       else if (sale.tipo_cuenta === 'Secundaria PS4') used.s_ps4++;
       else if (sale.tipo_cuenta === 'Primaria PS5') used.p_ps5++;
@@ -1672,7 +1755,7 @@ function getMembresiaSlots(membresiaId) {
   const used = { p_ps4: 0, s_ps4: 0, p_ps5: 0, s_ps5: 0 };
 
   AppState.sales.forEach(sale => {
-    if (String(sale.inventoryId) === String(m.id) && sale.estado !== 'Cancelada') {
+    if (String(sale.inventoryId) === String(m.id) && sale.estado !== 'Cancelada' && !sale.esta_anulada) {
       if (sale.tipo_cuenta === 'Primaria PS4') used.p_ps4++;
       else if (sale.tipo_cuenta === 'Secundaria PS4') used.s_ps4++;
       else if (sale.tipo_cuenta === 'Primaria PS5') used.p_ps5++;
@@ -1882,7 +1965,9 @@ function openModalVenta(id = null) {
     'ventaGameRowsContainer',
     'ventaPaquetesRowsContainer',
     'ventaMembresiasRowsContainer',
-    'ventaCodigosRowsContainer'
+    'ventaCodigosRowsContainer',
+    'ventaXboxRowsContainer',
+    'ventaPhysicalRowsContainer'
   ];
   containers.forEach(cId => {
     const el = document.getElementById(cId);
@@ -1905,14 +1990,38 @@ function openModalVenta(id = null) {
       document.getElementById('ventaFormTipoCliente').value = v.tipo_cliente || '💙 PUBLICIDAD';
       document.getElementById('ventaFormCiudad').value = v.ciudad || '';
       document.getElementById('ventaFormNota').value = v.nota || '';
-      document.getElementById('ventaFormVendedor').value = v.vendedor || 'ADMIN';
-      document.getElementById('ventaFormLista').value = v.lista || '';
+      
+      // Populate and set Lista dropdown
+      const listaSelect = document.getElementById('ventaFormLista');
+      if (listaSelect) {
+        listaSelect.innerHTML = '<option value="">-- Sin lista --</option>';
+        (AppState.listas || []).forEach(L => {
+          listaSelect.innerHTML += `<option value="${L.nombre}">${L.nombre}</option>`;
+        });
+        listaSelect.value = v.lista || '';
+      }
 
-      addVentaGameRow({
+      // Handle dual sellers
+      document.getElementById('ventaFormVendedor1').value = v.vendedor1 || v.vendedor || 'ADMIN';
+      document.getElementById('ventaFormVendedor2').value = v.vendedor2 || '';
+
+      const pData = {
         inventoryId: v.inventoryId,
         tipo_cuenta: v.tipo_cuenta,
         venta: v.venta
-      }, true);
+      };
+
+      if (v.productType === 'paquete') {
+        addVentaPaqueteRow(pData, true);
+      } else if (v.productType === 'membresia') {
+        addVentaMembresiaRow(pData, true);
+      } else if (v.productType === 'xbox') {
+        addVentaXboxRow(pData, true);
+      } else if (v.productType === 'physical') {
+        addVentaPhysicalRow(pData, true);
+      } else {
+        addVentaGameRow(pData, true);
+      }
     }
   } else {
     // Modo Nuevo
@@ -1928,8 +2037,19 @@ function openModalVenta(id = null) {
     document.getElementById('ventaFormTipoCliente').value = '💙 PUBLICIDAD';
     document.getElementById('ventaFormCiudad').value = '';
     document.getElementById('ventaFormNota').value = '';
-    document.getElementById('ventaFormVendedor').value = AppState.currentUser?.name || 'ADMIN';
-    document.getElementById('ventaFormLista').value = '';
+    
+    // Populate Lista and set defaults
+    const listaSelect = document.getElementById('ventaFormLista');
+    if (listaSelect) {
+      listaSelect.innerHTML = '<option value="">-- Sin lista --</option>';
+      (AppState.listas || []).forEach(L => {
+        listaSelect.innerHTML += `<option value="${L.nombre}">${L.nombre}</option>`;
+      });
+      listaSelect.value = '';
+    }
+
+    document.getElementById('ventaFormVendedor1').value = AppState.currentUser?.name || 'ADMIN';
+    document.getElementById('ventaFormVendedor2').value = '';
 
     // addVentaGameRow(); // Eliminado para que el modal salga vacío según solicitud del usuario
   }
@@ -2121,78 +2241,160 @@ function removeVentaMembresiaRow(rowId) {
 }
 
 /**
- * CÓDIGOS
+ * XBOX
  */
-function addVentaCodigoRow(data = null, isEdit = false) {
-  const container = document.getElementById('ventaCodigosRowsContainer');
-  const rowId = 'cod_' + Date.now() + Math.floor(Math.random() * 1000);
+function addVentaXboxRow(data = null, isEdit = false) {
+  const container = document.getElementById('ventaXboxRowsContainer');
+  const rowId = 'xbox_' + Date.now() + Math.floor(Math.random() * 1000);
 
   const rowDiv = document.createElement('div');
   rowDiv.className = 'game-row-box';
   rowDiv.id = `row-${rowId}`;
   rowDiv.style.cssText = 'display:grid; grid-template-columns: 1fr auto auto auto; gap:10px; align-items:end;';
 
-  // Construir opciones de denominaciones disponibles desde inventoryCodes
-  const codesDisponibles = (AppState.inventoryCodes || []).filter(c => c.estado === 'ON' && !c.usado);
-  const denomsUnicas = [...new Set(codesDisponibles.map(c => c.precioUsd))].sort((a, b) => a - b);
-
-  let opcionesDenom = '';
-  if (denomsUnicas.length === 0) {
-    opcionesDenom = '<option value="" disabled>⚠️ Sin stock disponible</option>';
-  } else {
-    opcionesDenom = '<option value="">-- Denominación --</option>';
-    denomsUnicas.forEach(d => {
-      const count = codesDisponibles.filter(c => c.precioUsd === d).length;
-      const sel = (data && String(data.codigoDenom) === String(d)) ? 'selected' : '';
-      opcionesDenom += `<option value="${d}" data-max="${count}" ${sel}>${d}us (${count} disp.)</option>`;
-    });
+  let itemText = '';
+  if (data && data.inventoryId) {
+    const x = (AppState.xboxInventory || []).find(it => String(it.id) === String(data.inventoryId));
+    itemText = x ? `(${x.id}) ${x.detalle}` : data.inventoryId;
   }
-
-  const initQty = data?.cantidad || 1;
-  const initPrecio = data?.venta || '';
 
   rowDiv.innerHTML = `
     <div class="form-group" style="position:relative; margin:0;">
-      <label style="color:var(--accent-purple); font-size:0.75rem; margin-bottom:4px; display:block;">Denominación</label>
-      <select class="scraping-input row-codigo-denom" 
-              style="width:100%; border-color:rgba(168,85,247,0.3);" 
-              onchange="updateCodigoRowMax('${rowId}', this)">
-        ${opcionesDenom}
-      </select>
-      <input type="hidden" class="row-inventory-id" value="">
-      <input type="hidden" class="row-product-type" value="codigo">
+      <label style="color:#107c10; font-size:0.75rem; margin-bottom:4px; display:block;">Xbox / Producto</label>
+      <input type="text" class="scraping-input row-xbox-search" placeholder="Buscar Xbox..." 
+             value="${itemText}" oninput="handleVentaXboxAutocomplete(this, '${rowId}')" autocomplete="off" 
+             style="width:100%; border-color:rgba(16,124,16,0.3);">
+      <input type="hidden" class="row-inventory-id" value="${data?.inventoryId || ''}">
+      <input type="hidden" class="row-product-type" value="xbox">
+      <input type="hidden" class="row-tipo-cuenta" value="Xbox">
+      <div id="suggestions-${rowId}" class="autocomplete-suggestions"></div>
     </div>
 
     <div class="form-group" style="margin:0;">
-      <label style="color:var(--text-muted); font-size:0.75rem; margin-bottom:4px; display:block; white-space:nowrap;">Cantidad</label>
-      <div style="display:flex; align-items:center; gap:0; border:1px solid rgba(168,85,247,0.4); border-radius:8px; overflow:hidden; background:rgba(0,0,0,0.3);">
-        <button type="button" onclick="stepCodigo('${rowId}', -1)" 
-                style="background:rgba(168,85,247,0.15); border:none; color:var(--accent-purple); width:32px; height:38px; font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-          <i data-lucide="minus" style="width:12px; height:12px;"></i>
-        </button>
-        <input type="number" id="qty-${rowId}" class="row-codigo-qty" value="${initQty}" min="1" max="99" 
-               style="width:42px; text-align:center; background:transparent; border:none; color:#fff; font-size:0.9rem; font-weight:700; padding:0 2px; outline:none;" readonly>
-        <button type="button" onclick="stepCodigo('${rowId}', 1)" 
-                style="background:rgba(168,85,247,0.15); border:none; color:var(--accent-purple); width:32px; height:38px; font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-          <i data-lucide="plus" style="width:12px; height:12px;"></i>
-        </button>
+      <label style="color:var(--text-muted); font-size:0.75rem; margin-bottom:4px; display:block;">Precio ($)</label>
+      <input type="number" class="scraping-input row-precio" placeholder="COP" value="${data?.venta || ''}" 
+             style="width:100%; border-color:rgba(16,124,16,0.3);">
+    </div>
+
+    <div style="display:flex; align-items:center;">
+      <button type="button" onclick="removeVentaXboxRow('${rowId}')" class="btn-remove-game" title="Quitar item">
+        <i data-lucide="trash-2" class="minimalist-icon" style="color:#107c10;"></i>
+      </button>
+    </div>
+  `;
+  container.appendChild(rowDiv);
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function removeVentaXboxRow(rowId) {
+  const row = document.getElementById(`row-${rowId}`);
+  if (row) row.remove();
+}
+
+function addVentaPhysicalRow(data = null, isEdit = false) {
+  const container = document.getElementById('ventaPhysicalRowsContainer');
+  const rowId = 'phys_' + Date.now() + Math.floor(Math.random() * 1000);
+
+  const rowDiv = document.createElement('div');
+  rowDiv.className = 'game-row-box';
+  rowDiv.id = `row-${rowId}`;
+  rowDiv.style.cssText = 'display:grid; grid-template-columns: 1fr auto auto auto; gap:10px; align-items:end;';
+
+  let itemText = '';
+  if (data && data.inventoryId) {
+    const p = (AppState.physicalInventory || []).find(it => String(it.id) === String(data.inventoryId));
+    itemText = p ? `(${p.id}) ${p.detalle}` : data.inventoryId;
+  }
+
+  rowDiv.innerHTML = `
+    <div class="form-group" style="position:relative; margin:0;">
+      <label style="color:#2dd4bf; font-size:0.75rem; margin-bottom:4px; display:block;">Producto Físico</label>
+      <input type="text" class="scraping-input row-physical-search" placeholder="Buscar producto..." 
+             value="${itemText}" oninput="handleVentaPhysicalAutocomplete(this, '${rowId}')" autocomplete="off" 
+             style="width:100%; border-color:rgba(45,212,191,0.3);">
+      <input type="hidden" class="row-inventory-id" value="${data?.inventoryId || ''}">
+      <input type="hidden" class="row-product-type" value="physical">
+      <input type="hidden" class="row-tipo-cuenta" value="Fisico">
+      <div id="suggestions-${rowId}" class="autocomplete-suggestions"></div>
+    </div>
+
+    <div class="form-group" style="margin:0;">
+      <label style="color:var(--text-muted); font-size:0.75rem; margin-bottom:4px; display:block;">Precio ($)</label>
+      <input type="number" class="scraping-input row-precio" placeholder="COP" value="${data?.venta || ''}" 
+             style="width:100%; border-color:rgba(45,212,191,0.3);">
+    </div>
+
+    <div style="display:flex; align-items:center;">
+      <button type="button" onclick="removeVentaPhysicalRow('${rowId}')" class="btn-remove-game" title="Quitar item">
+        <i data-lucide="trash-2" class="minimalist-icon" style="color:#2dd4bf;"></i>
+      </button>
+    </div>
+  `;
+  container.appendChild(rowDiv);
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function removeVentaPhysicalRow(rowId) {
+  const row = document.getElementById(`row-${rowId}`);
+  if (row) row.remove();
+}
+
+/**
+ * CÓDIGOS PSN (Restaura la función correcta)
+ */
+function addVentaCodigoRow(data = null, isEdit = false) {
+  const container = document.getElementById('ventaCodigosRowsContainer');
+  if (!container) return;
+  const rowId = 'cod_' + Date.now() + Math.round(Math.random() * 1000);
+
+  const rowDiv = document.createElement('div');
+  rowDiv.className = 'game-row-box';
+  rowDiv.id = `row-${rowId}`;
+  rowDiv.style.cssText = 'display:flex; gap:10px; align-items:flex-end; padding:10px; background:rgba(168,85,247,0.05); border:1px solid rgba(168,85,247,0.1); border-radius:8px; margin-bottom:8px;';
+
+  // Obtener denominaciones únicas disponibles
+  const denoms = [...new Set((AppState.inventoryCodes || []).filter(c => c.estado === 'ON' && !c.usado).map(c => c.precioUsd))].sort((a,b) => a-b);
+
+  const initDenom = data?.codigoDenom || '';
+  const initQty = data?.qty || 1;
+  const initPrecio = data?.venta || '';
+
+  rowDiv.innerHTML = `
+    <div class="form-group" style="margin:0; flex:1;">
+      <label style="color:var(--accent-purple); font-size:0.75rem; margin-bottom:4px; display:block;">Denominación (USD)</label>
+      <select class="form-select row-codigo-denom" onchange="updateCodigoRowMax('${rowId}', this)" 
+              style="width:100%; height:38px; background:rgba(0,0,0,0.3); color:#fff; border:1px solid rgba(168,85,247,0.3); border-radius:6px;">
+        <option value="">-- Seleccionar --</option>
+        ${denoms.map(d => `<option value="${d}" ${String(d) === String(initDenom) ? 'selected' : ''} data-max="${(AppState.inventoryCodes||[]).filter(c => c.estado === 'ON' && !c.usado && String(c.precioUsd) === String(d)).length}">${d} USD</option>`).join('')}
+      </select>
+      <input type="hidden" class="row-product-type" value="codigo">
+      <input type="hidden" class="row-inventory-id" value="">
+      <input type="hidden" class="row-tipo-cuenta" value="Código">
+    </div>
+
+    <div class="form-group" style="margin:0; width:100px;">
+      <label style="color:var(--text-muted); font-size:0.75rem; margin-bottom:4px; display:block;">Cantidad</label>
+      <div style="display:flex; align-items:center; background:rgba(0,0,0,0.3); border-radius:6px; border:1px solid rgba(168,85,247,0.3); overflow:hidden;">
+        <button type="button" onclick="stepCodigo('${rowId}', -1)" style="width:30px; height:36px; border:none; background:transparent; color:#fff; cursor:pointer; font-weight:bold;">-</button>
+        <input type="number" id="qty-${rowId}" class="row-codigo-qty" value="${initQty}" readonly 
+               style="width:38px; height:36px; border:none; background:transparent; color:#fff; text-align:center; font-size:0.9rem; outline:none;">
+        <button type="button" onclick="stepCodigo('${rowId}', 1)" style="width:30px; height:36px; border:none; background:transparent; color:#fff; cursor:pointer; font-weight:bold;">+</button>
       </div>
     </div>
 
     <div class="form-group" style="margin:0;">
-      <label style="color:var(--text-muted); font-size:0.75rem; margin-bottom:4px; display:block; white-space:nowrap;">Precio c/u (COP)</label>
+      <label style="color:var(--text-muted); font-size:0.75rem; margin-bottom:4px; display:block;">Precio u. ($)</label>
       <input type="number" class="scraping-input row-precio" placeholder="COP" value="${initPrecio}" 
              style="width:110px; border-color:rgba(168,85,247,0.3);">
     </div>
 
-    <div style="display:flex; align-items:flex-end; padding-bottom:2px;">
-      <button type="button" onclick="removeVentaCodigoRow('${rowId}')" class="btn-remove-game" title="Quitar" style="margin:0;">
+    <div style="display:flex; align-items:center; padding-bottom:1px;">
+      <button type="button" onclick="removeVentaCodigoRow('${rowId}')" class="btn-remove-game" title="Quitar">
         <i data-lucide="trash-2" class="minimalist-icon" style="color:var(--accent-purple);"></i>
       </button>
     </div>
   `;
 
-  // Mostrar subtotal dinámico abajo de la fila (opcional visual)
   container.appendChild(rowDiv);
   if (window.lucide) window.lucide.createIcons();
 }
@@ -2257,7 +2459,9 @@ function saveVentaDataForm() {
     pago: document.getElementById('ventaFormPago').value,
     tipo_cliente: document.getElementById('ventaFormTipoCliente').value,
     ciudad: document.getElementById('ventaFormCiudad').value,
-    vendedor: document.getElementById('ventaFormVendedor').value,
+    vendedor1: document.getElementById('ventaFormVendedor1').value,
+    vendedor2: document.getElementById('ventaFormVendedor2').value,
+    vendedor: document.getElementById('ventaFormVendedor1').value, // compatibility
     lista: document.getElementById('ventaFormLista').value,
     nota: document.getElementById('ventaFormNota').value
   };
@@ -2298,6 +2502,12 @@ function saveVentaDataForm() {
       } else if (oldSale.productType === 'codigo') {
         const oldC = AppState.inventory.find(c => String(c.id) === String(oldSale.inventoryId));
         if (oldC) oldC.estado = 'Activo';
+      } else if (oldSale.productType === 'xbox') {
+        const oldX = AppState.xboxInventory.find(x => String(x.id) === String(oldSale.inventoryId));
+        if (oldX) oldX.estado = 'ON';
+      } else if (oldSale.productType === 'physical') {
+        const oldP = AppState.physicalInventory.find(p => String(p.id) === String(oldSale.inventoryId));
+        if (oldP) oldP.estado = 'ON';
       }
 
       // Aplicar nuevo stock
@@ -2316,6 +2526,12 @@ function saveVentaDataForm() {
       } else if (pType === 'codigo') {
         const newC = AppState.inventory.find(c => String(c.id) === String(invId));
         if (newC) newC.estado = 'Vendido';
+      } else if (pType === 'xbox') {
+        const newX = AppState.xboxInventory.find(x => String(x.id) === String(invId));
+        if (newX) newX.estado = 'OFF';
+      } else if (pType === 'physical') {
+        const newP = AppState.physicalInventory.find(p => String(p.id) === String(invId));
+        if (newP) newP.estado = 'OFF';
       }
 
       AppState.sales[index] = {
@@ -2362,10 +2578,14 @@ function saveVentaDataForm() {
 
         // Crear N registros de venta individuales (uno por código)
         for (let i = 0; i < qty; i++) {
+          const isSplit = commonData.vendedor2 && commonData.vendedor2 !== commonData.vendedor1;
+          const finalPrice = isSplit ? precio / 2 : precio;
+
           const rawId = Math.random().toString(36).substr(2, 6).toUpperCase();
           const generatedId = 'V-' + rawId;
 
           AppState.sales.unshift({
+            ...commonData,
             id: generatedId,
             transaction_id: txId,
             fecha: t.date,
@@ -2374,11 +2594,32 @@ function saveVentaDataForm() {
             codigoDenom: denom,         // Denominación elegida (ej: "10")
             codigoAsignado: '',         // El PIN real se asigna al copiar la remisión
             tipo_cuenta: 'Código',
-            venta: precio,
+            venta: finalPrice,
             productType: 'codigo',
-            ...commonData
+            vendedor: commonData.vendedor1
           });
           countSaved++;
+
+          if (isSplit) {
+            const rawId2 = Math.random().toString(36).substr(2, 6).toUpperCase();
+            const generatedId2 = 'V-' + rawId2;
+            AppState.sales.unshift({
+              ...commonData,
+              id: generatedId2,
+              transaction_id: txId,
+              fecha: t.date,
+              hora: t.time,
+              inventoryId: '',
+              codigoDenom: denom,
+              codigoAsignado: '',
+              tipo_cuenta: 'Código',
+              venta: finalPrice,
+              productType: 'codigo',
+              vendedor: commonData.vendedor2,
+              isPartiallyPaid: true
+            });
+            countSaved++;
+          }
         }
       } else {
         const invId = row.querySelector('.row-inventory-id').value;
@@ -2398,23 +2639,54 @@ function saveVentaDataForm() {
               const field = getFieldFromCuentaExacta(tCuenta);
               if (field) itemM[field] = 'Vendido';
             }
+          } else if (pType === 'xbox') {
+            const itemX = (AppState.xboxInventory || []).find(x => String(x.id) === String(invId));
+            if (itemX) itemX.estado = 'OFF';
+          } else if (pType === 'physical') {
+            const itemP = (AppState.physicalInventory || []).find(p => String(p.id) === String(invId));
+            if (itemP) itemP.estado = 'OFF';
           }
 
           const rawId = Math.random().toString(36).substr(2, 6).toUpperCase();
           const generatedId = 'V-' + rawId;
 
+          const isSplit = commonData.vendedor2 && commonData.vendedor2 !== commonData.vendedor1;
+          const finalPrice = isSplit ? precio / 2 : precio;
+
+          // Registro para Vendedora 1
           AppState.sales.unshift({
+            ...commonData,
             id: generatedId,
             transaction_id: txId,
             fecha: t.date,
             hora: t.time,
             inventoryId: invId,
             tipo_cuenta: tCuenta,
-            venta: precio,
+            venta: finalPrice,
             productType: pType,
-            ...commonData
+            vendedor: commonData.vendedor1
           });
           countSaved++;
+
+          // Registro para Vendedora 2 (si aplica)
+          if (isSplit) {
+            const rawId2 = Math.random().toString(36).substr(2, 6).toUpperCase();
+            const generatedId2 = 'V-' + rawId2;
+            AppState.sales.unshift({
+              ...commonData,
+              id: generatedId2,
+              transaction_id: txId,
+              fecha: t.date,
+              hora: t.time,
+              inventoryId: invId,
+              tipo_cuenta: tCuenta,
+              venta: finalPrice,
+              productType: pType,
+              vendedor: commonData.vendedor2,
+              isPartiallyPaid: true
+            });
+            countSaved++;
+          }
         }
       }
     });
@@ -2462,6 +2734,12 @@ function deleteVenta(id) {
       } else if (v.productType === 'codigo') {
         const cItem = AppState.inventory.find(c => String(c.id) === String(v.inventoryId));
         if (cItem) cItem.estado = 'Activo';
+      } else if (v.productType === 'xbox') {
+        const xItem = (AppState.xboxInventory || []).find(x => String(x.id) === String(v.inventoryId));
+        if (xItem) xItem.estado = 'ON';
+      } else if (v.productType === 'physical') {
+        const pItem = (AppState.physicalInventory || []).find(p => String(p.id) === String(v.inventoryId));
+        if (pItem) pItem.estado = 'ON';
       }
     }
 
@@ -2611,7 +2889,9 @@ function closeFactura() { document.getElementById('facturaOverlay').classList.re
 
 function updateBalance() {
   // v.venta = campo actual (COP). Fallback a v.precio para registros legacy
-  const ing = AppState.sales.reduce((sum, v) => sum + (parseFloat(v.venta) || parseFloat(v.precio) || 0), 0);
+  const ing = AppState.sales
+    .filter(v => !v.esta_anulada)
+    .reduce((sum, v) => sum + (parseFloat(v.venta) || parseFloat(v.precio) || 0), 0);
 
   // Ingresos adicionales (aportes, capital, etc.)
   const ingExtra = (AppState.incomeExtra || []).reduce((sum, e) => sum + (parseFloat(e.monto) || 0), 0);
@@ -2662,6 +2942,7 @@ function renderPagoMetodoChart() {
   metodos.forEach(m => { dataActual[m] = 0; dataPasado[m] = 0; });
 
   AppState.sales.forEach(v => {
+    if (v.esta_anulada) return; // Omitir anuladas en gráficos de balance
     const metodo = (v.pago || '').trim();
     if (!metodo) return;
     const valor = parseFloat(v.venta) || parseFloat(v.precio) || 0;
@@ -3057,8 +3338,11 @@ function saveLocal() {
     analysis: AppState.analysis,
     idealStock: AppState.idealStock,
     clientsListas: AppState.clientsListas,
-    listas: AppState.listas
+    listas: AppState.listas,
+    xboxInventory: AppState.xboxInventory,
+    physicalInventory: AppState.physicalInventory
   }));
+  update2FABellBadge();
 }
 
 // NOTA: Esta funcionalidad de limpieza es TEMPORAL para fase de desarrollo/pruebas.
@@ -3131,6 +3415,8 @@ function loadLocal() {
     AppState.idealStock = data.idealStock || {};
     AppState.clientsListas = data.clientsListas || {};
     AppState.listas = data.listas || [];
+    AppState.xboxInventory = data.xboxInventory || [];
+    AppState.physicalInventory = data.physicalInventory || [];
 
     // Limpieza automática de datos de prueba antiguos
     const testIds = ["101", "102", "103", "104", "V-675559"];
@@ -3224,13 +3510,17 @@ function switchInvMode(mode) {
     document.getElementById('btnInvJuegos'),
     document.getElementById('btnInvPaquetes'),
     document.getElementById('btnInvMembresias'),
-    document.getElementById('btnInvCodigos')
+    document.getElementById('btnInvCodigos'),
+    document.getElementById('btnInvXbox'),
+    document.getElementById('btnInvPhysical')
   ];
   const allContainers = [
     document.getElementById('invJuegosContainer'),
     document.getElementById('invPaquetesContainer'),
     document.getElementById('invMembresiasContainer'),
-    document.getElementById('invCodigosContainer')
+    document.getElementById('invCodigosContainer'),
+    document.getElementById('invXboxContainer'),
+    document.getElementById('invPhysicalContainer')
   ];
 
   allBtns.forEach(b => b && b.classList.remove('active'));
@@ -3241,6 +3531,8 @@ function switchInvMode(mode) {
     paquetes: { btnId: 'btnInvPaquetes', containerId: 'invPaquetesContainer', render: renderInventoryPaquetes },
     membresias: { btnId: 'btnInvMembresias', containerId: 'invMembresiasContainer', render: renderInventoryMembresias },
     codigos: { btnId: 'btnInvCodigos', containerId: 'invCodigosContainer', render: renderInventoryCodigos },
+    xbox: { btnId: 'btnInvXbox', containerId: 'invXboxContainer', render: renderInventoryXbox },
+    physical: { btnId: 'btnInvPhysical', containerId: 'invPhysicalContainer', render: renderInventoryPhysical },
   };
 
   const config = modeMap[mode] || modeMap['juegos'];
@@ -3254,6 +3546,8 @@ function switchInvMode(mode) {
 function renderInventory() {
   renderInventoryJuegos();
   renderInventoryCodigos();
+  renderInventoryXbox();
+  renderInventoryPhysical();
   checkLowInventory();
   calculateBalances();
 }
@@ -3264,11 +3558,15 @@ function calculateBalances() {
   const codes = AppState.inventoryCodes || [];
   const paquetes = AppState.paquetes || [];
   const membresias = AppState.membresias || [];
+  const xbox = AppState.xboxInventory || [];
+  const fisicos = AppState.physicalInventory || [];
 
   let gamesUsd = 0, gamesCop = 0, countGames = 0;
   let codesUsd = 0, codesCop = 0, countCodes = 0;
   let paqUsd = 0, paqCop = 0, countPaq = 0;
   let memUsd = 0, memCop = 0, countMem = 0;
+  let xboxCop = 0, countXbox = 0;
+  let fisicosCop = 0, countFisicos = 0;
 
   // Aggregate Games
   games.forEach(g => {
@@ -3307,8 +3605,24 @@ function calculateBalances() {
     }
   });
 
+  // Aggregate Xbox
+  xbox.forEach(x => {
+    xboxCop += parseInt(x.costoCop || 0);
+    if (x.estado === 'ON') {
+      countXbox++;
+    }
+  });
+
+  // Aggregate Physical
+  fisicos.forEach(f => {
+    fisicosCop += parseInt(f.costoCop || 0);
+    if (f.estado === 'ON') {
+      countFisicos++;
+    }
+  });
+
   const globalUsd = gamesUsd + codesUsd + paqUsd + memUsd;
-  const globalCop = gamesCop + codesCop + paqCop + memCop;
+  const globalCop = gamesCop + codesCop + paqCop + memCop + xboxCop + fisicosCop;
 
   // Update KPIs
   const safeUpdate = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
@@ -4199,6 +4513,348 @@ function filterInventoryCodes() {
   renderInventoryCodigos();
 }
 
+function filterInventoryXbox() {
+  renderInventoryXbox();
+}
+
+function filterInventoryPhysical() {
+  renderInventoryPhysical();
+}
+
+/* --- XBOX INVENTORY --- */
+
+function renderInventoryXbox() {
+  console.log("Rendering Xbox Inventory");
+  const tbody = document.getElementById('inventoryXboxBody');
+  if (!tbody) return;
+
+  const searchInput = document.getElementById('searchXbox');
+  const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+  let xboxItems = (AppState.xboxInventory || []).filter(item => {
+    const detail = item.detalle || '';
+    const email = item.correo || '';
+    const matchesSearch = detail.toLowerCase().includes(query) || email.toLowerCase().includes(query);
+    return query === '' || matchesSearch;
+  });
+
+  // Sort by date Desc
+  xboxItems.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+  let html = '';
+  xboxItems.forEach((item, index) => {
+    const isON = item.estado === 'ON';
+    const user = AppState.currentUser;
+    const hasAccesoTotal = user.permisos && user.permisos.acceso_total === true;
+    const canEdit = hasAccesoTotal || (user.permisos && user.permisos.p_inventario_editar === true);
+    const canDelete = hasAccesoTotal || (user.permisos && user.permisos.p_inventario_eliminar === true);
+
+    html += `
+      <tr class="${isON ? 'row-active' : 'row-used'}">
+        <td class="row-number">${index + 1}</td>
+        <td style="color: var(--accent-cyan); font-weight: 700;">#${item.id}</td>
+        <td>${item.fecha || '-'}</td>
+        <td class="fw-bold" style="color:var(--text-light)">${item.detalle || '-'}</td>
+        <td style="color: var(--accent-cyan);">${item.correo || '-'}</td>
+        <td>${item.password || '-'}</td>
+        <td class="text-success" style="font-weight: 700;">${formatCOP(item.costoCop)}</td>
+        <td>${item.proveedor || '-'}</td>
+        <td style="text-align: center;">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+            <span class="status-label-premium ${isON ? 'active' : 'used'}">${item.estado || 'OFF'}</span>
+            <label class="premium-switch">
+              <input type="checkbox" ${isON ? 'checked' : ''} onchange="toggleXboxStatus(${item.id})">
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+        </td>
+        <td>
+          <div style="display:flex; gap:10px; justify-content:center;">
+            <button class="action-btn-premium view-btn" onclick="openModalXbox(${item.id}, true)" title="Ver"><i data-lucide="eye" class="minimalist-icon" style="width:16px; height:16px;"></i></button>
+            ${canEdit ? `<button class="action-btn-premium edit-btn" onclick="openModalXbox(${item.id})" title="Editar"><i data-lucide="edit-3" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
+            ${canDelete ? `<button class="action-btn-premium delete-btn" onclick="deleteXbox(${item.id})" title="Eliminar"><i data-lucide="trash-2" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
+          </div>
+        </td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = html || '<tr><td colspan="10" style="text-align:center; padding: 40px; color:rgba(255,255,255,0.3)">Sin registros de Xbox</td></tr>';
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function toggleXboxStatus(id) {
+  const item = AppState.xboxInventory.find(x => x.id === id);
+  if (item) {
+    item.estado = item.estado === 'ON' ? 'OFF' : 'ON';
+    logEvent('INVENTARIO', `Cambió estado Xbox #${id} a ${item.estado}`);
+    saveLocal();
+    renderInventoryXbox();
+    showToast(`Estado Xbox #${id} cambiado a ${item.estado}`);
+  }
+}
+
+function openModalXbox(id = null, readonly = false) {
+  const modal = document.getElementById('modalXboxInventory');
+  if (!modal) return;
+
+  const form = document.getElementById('xboxInventoryForm');
+  const titleEl = document.getElementById('modalXboxTitle');
+  const btnSave = document.getElementById('btnSaveXbox');
+
+  form.reset();
+  document.getElementById('xboxFormId').value = '';
+
+  if (id) {
+    const item = AppState.xboxInventory.find(x => x.id === id);
+    if (item) {
+      document.getElementById('xboxFormId').value = item.id;
+      document.getElementById('xboxFormFecha').value = item.fecha;
+      document.getElementById('xboxFormDetalle').value = item.detalle;
+      document.getElementById('xboxFormCorreo').value = item.correo;
+      document.getElementById('xboxFormPassword').value = item.password;
+      document.getElementById('xboxFormCostoCop').value = item.costoCop;
+      document.getElementById('xboxFormProveedor').value = item.proveedor;
+      document.getElementById('xboxFormEstado').value = item.estado || 'ON';
+
+      titleEl.innerHTML = readonly ? '<i data-lucide="eye"></i> Detalle Xbox' : '<i data-lucide="edit-3"></i> Editar Xbox';
+    }
+  } else {
+    titleEl.innerHTML = '<i data-lucide="plus-circle"></i> Nuevo Xbox';
+    document.getElementById('xboxFormFecha').value = new Date().toISOString().split('T')[0];
+    document.getElementById('xboxFormEstado').value = 'ON';
+  }
+
+  // Readonly mode management
+  const inputs = form.querySelectorAll('input, select, textarea');
+  inputs.forEach(input => input.disabled = readonly);
+  if (btnSave) btnSave.style.display = readonly ? 'none' : 'flex';
+
+  modal.classList.add('show');
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function closeXboxModal() {
+  const modal = document.getElementById('modalXboxInventory');
+  if (modal) modal.classList.remove('show');
+}
+
+function saveXboxInventory() {
+  const idInput = document.getElementById('xboxFormId').value;
+  const isEdit = idInput !== '';
+
+  const itemData = {
+    id: isEdit ? parseInt(idInput) : (AppState.xboxInventory.length > 0 ? Math.max(...AppState.xboxInventory.map(x => x.id)) + 1 : 1),
+    fecha: document.getElementById('xboxFormFecha').value,
+    detalle: document.getElementById('xboxFormDetalle').value,
+    correo: document.getElementById('xboxFormCorreo').value,
+    password: document.getElementById('xboxFormPassword').value,
+    costoCop: parseInt(document.getElementById('xboxFormCostoCop').value || 0),
+    proveedor: document.getElementById('xboxFormProveedor').value,
+    estado: document.getElementById('xboxFormEstado').value
+  };
+
+  if (!itemData.detalle || !itemData.correo) {
+    showPremiumAlert('Error', 'Por favor completa el detalle y el correo.', 'error');
+    return;
+  }
+
+  if (isEdit) {
+    const index = AppState.xboxInventory.findIndex(x => x.id === itemData.id);
+    if (index !== -1) {
+      AppState.xboxInventory[index] = itemData;
+      logEvent('INVENTARIO', `Editó Xbox #${itemData.id}: ${itemData.detalle}`);
+    }
+  } else {
+    AppState.xboxInventory.push(itemData);
+    logEvent('INVENTARIO', `Agregó nuevo Xbox #${itemData.id}: ${itemData.detalle}`);
+  }
+
+  saveLocal();
+  closeXboxModal();
+  renderInventoryXbox();
+  calculateBalances();
+  showToast(isEdit ? 'Xbox actualizado' : 'Xbox agregado');
+}
+
+function deleteXbox(id) {
+  showDeleteConfirmModal('¿Estás seguro de eliminar este registro de Xbox?', () => {
+    const index = AppState.xboxInventory.findIndex(x => x.id === id);
+    if (index !== -1) {
+      const deleted = AppState.xboxInventory.splice(index, 1)[0];
+      logEvent('INVENTARIO', `Eliminó Xbox #${id}: ${deleted.detalle}`);
+      saveLocal();
+      renderInventoryXbox();
+      calculateBalances();
+      showToast('Xbox eliminado');
+    }
+  });
+}
+
+/* --- PHYSICAL PRODUCTS INVENTORY --- */
+
+function renderInventoryPhysical() {
+  console.log("Rendering Physical Inventory");
+  const tbody = document.getElementById('inventoryPhysicalBody');
+  if (!tbody) return;
+
+  const searchInput = document.getElementById('searchPhysical');
+  const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+  let physicalItems = (AppState.physicalInventory || []).filter(item => {
+    const detail = item.detalle || '';
+    const serial = item.serial || '';
+    const matchesSearch = detail.toLowerCase().includes(query) || serial.toLowerCase().includes(query);
+    return query === '' || matchesSearch;
+  });
+
+  // Sort by date Desc
+  physicalItems.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+  let html = '';
+  physicalItems.forEach((item, index) => {
+    const isON = item.estado === 'ON';
+    const user = AppState.currentUser;
+    const hasAccesoTotal = user.permisos && user.permisos.acceso_total === true;
+    const canEdit = hasAccesoTotal || (user.permisos && user.permisos.p_inventario_editar === true);
+    const canDelete = hasAccesoTotal || (user.permisos && user.permisos.p_inventario_eliminar === true);
+
+    html += `
+      <tr class="${isON ? 'row-active' : 'row-used'}">
+        <td class="row-number">${index + 1}</td>
+        <td style="color: var(--accent-cyan); font-weight: 700;">#${item.id}</td>
+        <td>${item.fecha || '-'}</td>
+        <td class="fw-bold" style="color:var(--text-light)">${item.detalle || '-'}</td>
+        <td style="color: var(--accent-cyan);">${item.serial || '-'}</td>
+        <td class="text-success" style="font-weight: 700;">${formatCOP(item.costoCop)}</td>
+        <td style="text-align: center;">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+            <span class="status-label-premium ${isON ? 'active' : 'used'}">${item.estado || 'OFF'}</span>
+            <label class="premium-switch">
+              <input type="checkbox" ${isON ? 'checked' : ''} onchange="togglePhysicalStatus(${item.id})">
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+        </td>
+        <td>
+          <div style="display:flex; gap:10px; justify-content:center;">
+            <button class="action-btn-premium view-btn" onclick="openModalPhysical(${item.id}, true)" title="Ver"><i data-lucide="eye" class="minimalist-icon" style="width:16px; height:16px;"></i></button>
+            ${canEdit ? `<button class="action-btn-premium edit-btn" onclick="openModalPhysical(${item.id})" title="Editar"><i data-lucide="edit-3" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
+            ${canDelete ? `<button class="action-btn-premium delete-btn" onclick="deletePhysical(${item.id})" title="Eliminar"><i data-lucide="trash-2" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
+          </div>
+        </td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = html || '<tr><td colspan="8" style="text-align:center; padding: 40px; color:rgba(255,255,255,0.3)">Sin productos físicos</td></tr>';
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function togglePhysicalStatus(id) {
+  const item = AppState.physicalInventory.find(f => f.id === id);
+  if (item) {
+    item.estado = item.estado === 'ON' ? 'OFF' : 'ON';
+    logEvent('INVENTARIO', `Cambió estado Producto Físico #${id} a ${item.estado}`);
+    saveLocal();
+    renderInventoryPhysical();
+    showToast(`Estado Producto #${id} cambiado a ${item.estado}`);
+  }
+}
+
+function openModalPhysical(id = null, readonly = false) {
+  const modal = document.getElementById('modalPhysicalInventory');
+  if (!modal) return;
+
+  const form = document.getElementById('physicalInventoryForm');
+  const titleEl = document.getElementById('modalPhysicalTitle');
+  const btnSave = document.getElementById('btnSavePhysical');
+
+  form.reset();
+  document.getElementById('physicalFormId').value = '';
+
+  if (id) {
+    const item = AppState.physicalInventory.find(f => f.id === id);
+    if (item) {
+      document.getElementById('physicalFormId').value = item.id;
+      document.getElementById('physicalFormFecha').value = item.fecha;
+      document.getElementById('physicalFormDetalle').value = item.detalle;
+      document.getElementById('physicalFormSerial').value = item.serial;
+      document.getElementById('physicalFormCostoCop').value = item.costoCop;
+      document.getElementById('physicalFormEstado').value = item.estado || 'ON';
+
+      titleEl.innerHTML = readonly ? '<i data-lucide="eye"></i> Detalle Producto Físico' : '<i data-lucide="edit-3"></i> Editar Producto Físico';
+    }
+  } else {
+    titleEl.innerHTML = '<i data-lucide="plus-circle"></i> Nuevo Producto Físico';
+    document.getElementById('physicalFormFecha').value = new Date().toISOString().split('T')[0];
+    document.getElementById('physicalFormEstado').value = 'ON';
+  }
+
+  // Readonly mode management
+  const inputs = form.querySelectorAll('input, select, textarea');
+  inputs.forEach(input => input.disabled = readonly);
+  if (btnSave) btnSave.style.display = readonly ? 'none' : 'flex';
+
+  modal.classList.add('show');
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function closePhysicalModal() {
+  const modal = document.getElementById('modalPhysicalInventory');
+  if (modal) modal.classList.remove('show');
+}
+
+function savePhysicalInventory() {
+  const idInput = document.getElementById('physicalFormId').value;
+  const isEdit = idInput !== '';
+
+  const itemData = {
+    id: isEdit ? parseInt(idInput) : (AppState.physicalInventory.length > 0 ? Math.max(...AppState.physicalInventory.map(f => f.id)) + 1 : 1),
+    fecha: document.getElementById('physicalFormFecha').value,
+    detalle: document.getElementById('physicalFormDetalle').value,
+    serial: document.getElementById('physicalFormSerial').value,
+    costoCop: parseInt(document.getElementById('physicalFormCostoCop').value || 0),
+    estado: document.getElementById('physicalFormEstado').value
+  };
+
+  if (!itemData.detalle) {
+    showPremiumAlert('Error', 'Por favor completa el detalle del producto.', 'error');
+    return;
+  }
+
+  if (isEdit) {
+    const index = AppState.physicalInventory.findIndex(f => f.id === itemData.id);
+    if (index !== -1) {
+      AppState.physicalInventory[index] = itemData;
+      logEvent('INVENTARIO', `Editó Producto Físico #${itemData.id}: ${itemData.detalle}`);
+    }
+  } else {
+    AppState.physicalInventory.push(itemData);
+    logEvent('INVENTARIO', `Agregó nuevo Producto Físico #${itemData.id}: ${itemData.detalle}`);
+  }
+
+  saveLocal();
+  closePhysicalModal();
+  renderInventoryPhysical();
+  calculateBalances();
+  showToast(isEdit ? 'Producto actualizado' : 'Producto agregado');
+}
+
+function deletePhysical(id) {
+  showDeleteConfirmModal('¿Estás seguro de eliminar este registro de Producto Físico?', () => {
+    const index = AppState.physicalInventory.findIndex(f => f.id === id);
+    if (index !== -1) {
+      const deleted = AppState.physicalInventory.splice(index, 1)[0];
+      logEvent('INVENTARIO', `Eliminó Producto Físico #${id}: ${deleted.detalle}`);
+      saveLocal();
+      renderInventoryPhysical();
+      calculateBalances();
+      showToast('Producto eliminado');
+    }
+  });
+}
+
 function renderInventoryCodigos() {
   const user = AppState.currentUser;
   if (!user) return;
@@ -4945,11 +5601,97 @@ function selectVentaCodigoSuggestion(rowId, id, title) {
   row.querySelector('.row-codigo-search').value = `(${id}) ${title}`;
   row.querySelector('.row-inventory-id').value = id;
   document.getElementById(`suggestions-${rowId}`).style.display = 'none';
+}function handleVentaXboxAutocomplete(input, rowId) {
+  const container = document.getElementById(`suggestions-${rowId}`);
+  const val = input.value.trim().toLowerCase();
+
+  if (!val) {
+    container.style.display = 'none';
+    const row = document.getElementById(`row-${rowId}`);
+    if (row) row.querySelector('.row-inventory-id').value = '';
+    return;
+  }
+
+  const matches = (AppState.xboxInventory || []).filter(x => 
+    x.estado === 'ON' && 
+    (String(x.id).toLowerCase().includes(val) || (x.detalle && x.detalle.toLowerCase().includes(val)))
+  ).slice(0, 10);
+
+  if (matches.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.innerHTML = matches.map(x => `
+    <div class="autocomplete-suggestion" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px;" 
+         onclick="selectVentaXboxSuggestion('${rowId}', '${x.id}', '${x.detalle.replace(/'/g, "\\'")}')">
+      <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        <span style="font-size: 0.7rem; color: #888;">#${x.id}</span>
+        <span style="font-size: 0.8rem; font-weight: 500; color: #fff;">${x.detalle}</span>
+      </div>
+      <div>
+        <span style="color:#107c10; font-size: 0.65rem;">Xbox ON</span>
+      </div>
+    </div>
+  `).join('');
+
+  container.style.display = 'block';
 }
 
+function selectVentaXboxSuggestion(rowId, id, detail) {
+  const row = document.getElementById(`row-${rowId}`);
+  if (!row) return;
 
+  row.querySelector('.row-xbox-search').value = `(${id}) ${detail}`;
+  row.querySelector('.row-inventory-id').value = id;
+  document.getElementById(`suggestions-${rowId}`).style.display = 'none';
+}
 
+function handleVentaPhysicalAutocomplete(input, rowId) {
+  const container = document.getElementById(`suggestions-${rowId}`);
+  const val = input.value.trim().toLowerCase();
 
+  if (!val) {
+    container.style.display = 'none';
+    const row = document.getElementById(`row-${rowId}`);
+    if (row) row.querySelector('.row-inventory-id').value = '';
+    return;
+  }
+
+  const matches = (AppState.physicalInventory || []).filter(p => 
+    p.estado === 'ON' && 
+    (String(p.id).toLowerCase().includes(val) || (p.detalle && p.detalle.toLowerCase().includes(val)))
+  ).slice(0, 10);
+
+  if (matches.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.innerHTML = matches.map(p => `
+    <div class="autocomplete-suggestion" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px;" 
+         onclick="selectVentaPhysicalSuggestion('${rowId}', '${p.id}', '${p.detalle.replace(/'/g, "\\'")}')">
+      <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        <span style="font-size: 0.7rem; color: #888;">#${p.id}</span>
+        <span style="font-size: 0.8rem; font-weight: 500; color: #fff;">${p.detalle}</span>
+      </div>
+      <div>
+        <span style="color:#2dd4bf; font-size: 0.65rem;">Physical ON</span>
+      </div>
+    </div>
+  `).join('');
+
+  container.style.display = 'block';
+}
+
+function selectVentaPhysicalSuggestion(rowId, id, detail) {
+  const row = document.getElementById(`row-${rowId}`);
+  if (!row) return;
+
+  row.querySelector('.row-physical-search').value = `(${id}) ${detail}`;
+  row.querySelector('.row-inventory-id').value = id;
+  document.getElementById(`suggestions-${rowId}`).style.display = 'none';
+}
 
 // ==========================================
 // TEMPLATE LOGIC (PLANTILLAS FACTURA)
@@ -5075,17 +5817,30 @@ function getInventoryItemData(venta) {
 
   if (!venta.inventoryId) return { jNombre, cCorreo, cPass, c2fa };
 
-  if (venta.productType === 'paquete') {
+  const pType = (venta.productType || '').toLowerCase();
+  const tCuenta = (venta.tipo_cuenta || '').toLowerCase();
+
+  if (pType === 'paquete') {
     const g = AppState.paquetes.find(ig => String(ig.id) === String(venta.inventoryId));
     if (g) {
       cCorreo = g.correo || cCorreo; cPass = g.password || cPass; c2fa = g.codigo2fa || c2fa; jNombre = g.nombre || jNombre;
     }
-  } else if (venta.productType === 'membresia') {
+  } else if (pType === 'membresia') {
     const g = AppState.membresias.find(ig => String(ig.id) === String(venta.inventoryId));
     if (g) {
       cCorreo = g.correo || cCorreo; cPass = g.password || cPass; c2fa = g.codigo2fa || c2fa; jNombre = g.tipo || jNombre;
     }
-  } else if (venta.productType === 'codigo') {
+  } else if (pType === 'xbox' || tCuenta === 'xbox') {
+    const g = AppState.xboxInventory.find(ig => String(ig.id) === String(venta.inventoryId));
+    if (g) {
+      cCorreo = g.correo || cCorreo; cPass = g.password || cPass; jNombre = g.detalle || jNombre;
+    }
+  } else if (pType === 'physical' || tCuenta === 'physical' || tCuenta === 'producto físico') {
+    const g = AppState.physicalInventory.find(ig => String(ig.id) === String(venta.inventoryId));
+    if (g) {
+      jNombre = g.detalle || jNombre;
+    }
+  } else if (pType === 'codigo') {
     const g = AppState.inventory.find(ig => String(ig.id) === String(venta.inventoryId));
     if (g) {
       jNombre = g.juego || jNombre;
@@ -5958,6 +6713,7 @@ function renderClientHistory() {
   const clientMap = new Map();
 
   AppState.sales.forEach(venta => {
+    if (venta.esta_anulada) return; // Omitir anuladas en historial de cliente (gastos y cantidad)
     // El nombre real del cliente se guarda como 'nombre_cliente'
     let clientName = (venta.nombre_cliente || '').trim();
 
@@ -6577,7 +7333,12 @@ function renderBitacoraEventos() {
   if (!tbody) return;
   tbody.innerHTML = '';
 
-  const logs = [...AppState.auditLog].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  const showAnulaciones = document.getElementById('filterBitacoraAnulaciones')?.checked ?? true;
+  let logs = [...AppState.auditLog].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  if (!showAnulaciones) {
+    logs = logs.filter(log => !['Factura Anulada', 'Factura Reactivada', 'Pedido Anulado', 'Pedido Reactivado'].includes(log.accion));
+  }
 
   if (logs.length === 0) {
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color: var(--text-muted);">No hay eventos registrados...</td></tr>';
@@ -6707,7 +7468,7 @@ function updateChecklistFromRole() {
 
   if (rol === 'Administrador') {
     ['p_dashboard_ver', 'p_analisis_ver', 'p_catalogo_ver',
-      'p_ventas_ver', 'p_ventas_crear', 'p_ventas_editar', 'p_ventas_eliminar',
+      'p_ventas_ver', 'p_ventas_crear', 'p_ventas_editar', 'p_ventas_eliminar', 'p_ventas_anular',
       'p_inventario_ver', 'p_inventario_crear', 'p_inventario_editar', 'p_inventario_eliminar',
       'p_analytics_ver', 'p_balance_ver', 'p_balance_editar', 'p_bitacora_ver'].forEach(id => {
         const el = document.getElementById(id);
@@ -6743,7 +7504,7 @@ function saveUsuario() {
   // Generate permisos object
   const permisos = { acceso_total: accesoTotal };
   const perms = ['p_dashboard_ver', 'p_analisis_ver', 'p_catalogo_ver',
-    'p_ventas_ver', 'p_ventas_crear', 'p_ventas_editar', 'p_ventas_eliminar',
+    'p_ventas_ver', 'p_ventas_crear', 'p_ventas_editar', 'p_ventas_eliminar', 'p_ventas_anular',
     'p_inventario_ver', 'p_inventario_crear', 'p_inventario_editar', 'p_inventario_eliminar',
     'p_analytics_ver', 'p_balance_ver', 'p_balance_editar', 'p_bitacora_ver'];
 
@@ -6901,5 +7662,89 @@ async function use2FACode(itemId, itemType, codeIndex) {
 
 function closeModal2FA() {
   const modal = document.getElementById('modal2FAOverlay');
+  if (modal) modal.classList.remove('show');
+}
+
+/* --- LÓGICA DE NOTIFICACIONES 2FA (POCOS CÓDIGOS) --- */
+
+function update2FABellBadge() {
+  const badge = document.getElementById('badge2FANotif');
+  if (!badge) return;
+
+  const low2FACount = countLow2FACuentas();
+  if (low2FACount > 0) {
+    badge.textContent = low2FACount;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function countLow2FACuentas() {
+  const soldGames = (AppState.inventoryGames || []).filter(g => g.estado === 'Vendido' || AppState.sales.some(s => String(s.inventoryId) === String(g.id) && s.productType === 'game'));
+  const soldPaquetes = (AppState.paquetes || []).filter(p => p.estado === 'Vendido' || AppState.sales.some(s => String(s.inventoryId) === String(p.id) && s.productType === 'paquete'));
+  const soldMembresias = (AppState.membresias || []).filter(m => m.estado === 'Vendido' || AppState.sales.some(s => String(s.inventoryId) === String(m.id) && s.productType === 'membresia'));
+  
+  const allCuentas = [...soldGames, ...soldPaquetes, ...soldMembresias];
+  
+  return allCuentas.filter(c => {
+    const codesRaw = c.cod_2_pasos || c.codigo2fa || '';
+    const count = codesRaw.split('\n').map(x => x.trim()).filter(x => x.length > 0).length;
+    return count > 0 && count <= 3;
+  }).length;
+}
+
+function open2FANotifModal() {
+  const modal = document.getElementById('modal2FANotifOverlay');
+  const tbody = document.getElementById('body2FANotif');
+  if (!modal || !tbody) return;
+
+  const soldGames = (AppState.inventoryGames || []).filter(g => g.estado === 'Vendido' || AppState.sales.some(s => String(s.inventoryId) === String(g.id) && s.productType === 'game')).map(x => ({...x, _itemType: 'game'}));
+  const soldPaquetes = (AppState.paquetes || []).filter(p => p.estado === 'Vendido' || AppState.sales.some(s => String(s.inventoryId) === String(p.id) && s.productType === 'paquete')).map(x => ({...x, _itemType: 'paquete'}));
+  const soldMembresias = (AppState.membresias || []).filter(m => m.estado === 'Vendido' || AppState.sales.some(s => String(s.inventoryId) === String(m.id) && s.productType === 'membresia')).map(x => ({...x, _itemType: 'membresia'}));
+  
+  const allCuentas = [...soldGames, ...soldPaquetes, ...soldMembresias];
+  const low2FACuentas = allCuentas.filter(c => {
+    const codesRaw = c.cod_2_pasos || c.codigo2fa || '';
+    const count = codesRaw.split('\n').map(x => x.trim()).filter(x => x.length > 0).length;
+    return count > 0 && count <= 3;
+  });
+
+  tbody.innerHTML = '';
+  if (low2FACuentas.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">No hay cuentas con pocos códigos.</td></tr>';
+  } else {
+    low2FACuentas.forEach(c => {
+      const codesRaw = c.cod_2_pasos || c.codigo2fa || '';
+      const count = codesRaw.split('\n').map(x => x.trim()).filter(x => x.length > 0).length;
+      
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="padding: 12px 10px;"><span class="id-badge">${c.id}</span></td>
+        <td class="fw-bold" style="color:var(--text-light); padding: 12px 10px;">${c.juego || c.nombre || c.tipo || 'N/A'}</td>
+        <td style="color:var(--accent-cyan); padding: 12px 10px;">${c.correo || 'N/A'}</td>
+        <td style="text-align:center; padding: 12px 10px;">
+          <div class="badge-2fa ${count === 0 ? 'zero' : 'low'}" style="margin: 0 auto; min-width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: bold; background:${count === 0 ? 'rgba(244,63,94,0.1)' : 'rgba(245,158,11,0.1)'}; color:${count === 0 ? '#f43f5e' : '#f59e0b'}; border:1px solid ${count === 0 ? 'rgba(244,63,94,0.3)' : 'rgba(245,158,11,0.3)'};">
+            ${count}
+          </div>
+        </td>
+        <td style="padding: 12px 10px;">
+          <div style="display:flex; gap:5px; justify-content:center;">
+            <button class="action-btn-premium" style="width:32px; height:32px; padding:0; border-radius: 8px; background: rgba(0, 212, 255, 0.1); border: 1px solid rgba(0, 212, 255, 0.2); color: var(--accent-cyan);" onclick="close2FANotifModal(); open2FAModal('${c.id}', '${c._itemType}')" title="Ver/Eliminar códigos">
+              <i data-lucide="eye" style="width:16px; height:16px;"></i>
+            </button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  modal.classList.add('show');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function close2FANotifModal() {
+  const modal = document.getElementById('modal2FANotifOverlay');
   if (modal) modal.classList.remove('show');
 }

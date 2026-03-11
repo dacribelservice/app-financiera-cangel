@@ -1204,6 +1204,23 @@
               </svg>
               Códigos PSN
             </button>
+            <button class="nav-tab" id="btnInvXbox" onclick="switchInvMode('xbox')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z" />
+                <path d="M12 6a6 6 0 0 0-6 6c0 1.5.5 2.8 1.5 3.8L12 11l4.5 4.8c1-1 1.5-2.3 1.5-3.8a6 6 0 0 0-6-6z" />
+              </svg>
+              Xbox
+            </button>
+            <button class="nav-tab" id="btnInvPhysical" onclick="switchInvMode('physical')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+                <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                <path d="m3.3 7 8.7 5 8.7-5" />
+                <path d="M12 22V12" />
+              </svg>
+              Productos Físicos
+            </button>
           </div>
 
           <div id="invJuegosContainer">
@@ -1420,6 +1437,7 @@
                       <th>E</th>
                       <th>F</th>
                       <th>G</th>
+                      <th>H</th>
                     </tr>
                     <tr class="header">
                       <th class="row-number-header">1</th>
@@ -1433,6 +1451,100 @@
                     </tr>
                   </thead>
                   <tbody id="inventoryCodigosBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Contenedor: XBOX -->
+          <div id="invXboxContainer" class="hidden">
+            <div class="table-section">
+              <div class="table-toolbar">
+                <button class="btn-primary" id="btnNuevoXbox" style="background: #107c10; color: #fff;"
+                  onclick="openModalXbox()">+ Comprar Xbox</button>
+                <div style="display: flex; gap: 15px; align-items: center; margin-left: auto;">
+                  <div class="premium-search-container" style="position: relative;">
+                    <i data-lucide="search" class="minimalist-icon"
+                      style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--accent-cyan); opacity: 0.7; width: 16px; height: 16px;"></i>
+                    <input type="text" id="searchXbox" placeholder="Buscar en Xbox..."
+                      class="premium-search-input" onkeyup="filterInventoryXbox()">
+                  </div>
+                </div>
+              </div>
+              <div class="table-container">
+                <table class="excel-table" id="inventoryXboxTable">
+                  <thead>
+                    <tr class="column-letters">
+                      <th class="row-number-header"></th>
+                      <th>A</th>
+                      <th>B</th>
+                      <th>C</th>
+                      <th>D</th>
+                      <th>E</th>
+                      <th>F</th>
+                      <th>G</th>
+                      <th>H</th>
+                      <th>I</th>
+                    </tr>
+                    <tr class="header">
+                      <th class="row-number-header">1</th>
+                      <th>ID</th>
+                      <th>Fecha Compra</th>
+                      <th>Detalle</th>
+                      <th>Correo</th>
+                      <th>Contraseña</th>
+                      <th>Costo COP</th>
+                      <th>Proveedor</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="inventoryXboxBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Contenedor: PRODUCTOS FISICOS -->
+          <div id="invPhysicalContainer" class="hidden">
+            <div class="table-section">
+              <div class="table-toolbar">
+                <button class="btn-primary" id="btnNuevoPhysical" style="background: var(--accent-cyan); color: #000;"
+                  onclick="openModalPhysical()">+ Comprar Producto Físico</button>
+                <div style="display: flex; gap: 15px; align-items: center; margin-left: auto;">
+                  <div class="premium-search-container" style="position: relative;">
+                    <i data-lucide="search" class="minimalist-icon"
+                      style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--accent-cyan); opacity: 0.7; width: 16px; height: 16px;"></i>
+                    <input type="text" id="searchPhysical" placeholder="Buscar productos..."
+                      class="premium-search-input" onkeyup="filterInventoryPhysical()">
+                  </div>
+                </div>
+              </div>
+              <div class="table-container">
+                <table class="excel-table" id="inventoryPhysicalTable">
+                  <thead>
+                    <tr class="column-letters">
+                      <th class="row-number-header"></th>
+                      <th>A</th>
+                      <th>B</th>
+                      <th>C</th>
+                      <th>D</th>
+                      <th>E</th>
+                      <th>F</th>
+                      <th>G</th>
+                    </tr>
+                    <tr class="header">
+                      <th class="row-number-header">1</th>
+                      <th>ID</th>
+                      <th>Fecha Compra</th>
+                      <th>Detalle</th>
+                      <th>Serial</th>
+                      <th>Costo COP</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="inventoryPhysicalBody"></tbody>
                 </table>
               </div>
             </div>
@@ -1638,6 +1750,11 @@
                     style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--accent-cyan); opacity: 0.7; width: 16px; height: 16px;"></i>
                   <input type="text" id="searchCuentasPsn" placeholder="Buscar por juego o correo..."
                     class="premium-search-input" onkeyup="renderCuentasPSN()">
+                </div>
+                <!-- Campana de Notificaciones 2FA -->
+                <div class="notif-bell-container" id="bell2FANotif" onclick="open2FANotifModal()" title="Cuentas con pocos códigos">
+                  <i data-lucide="bell" style="width: 20px; height: 20px; color: var(--accent-yellow);"></i>
+                  <div class="notif-badge" id="badge2FANotif">0</div>
                 </div>
               </div>
               <div class="table-container">
@@ -2060,7 +2177,16 @@
 
           <!-- TAB INTERNO 1: Visor de Eventos -->
           <div id="bitacoraVisorEventos">
-            <div class="card">
+            <div class="card" style="padding: 20px;">
+              <div class="table-toolbar" style="margin-bottom: 20px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: space-between;">
+                <h4 style="margin: 0; color: var(--text-light); font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                  <i data-lucide="filter" style="width: 18px; height: 18px; color: var(--accent-cyan);"></i> Filtrar Eventos
+                </h4>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text-muted); font-size: 0.9rem; transition: color 0.3s;" onmouseover="this.style.color='var(--text-light)'" onmouseout="this.style.color='var(--text-muted)'">
+                  <input type="checkbox" id="filterBitacoraAnulaciones" checked onchange="renderBitacoraEventos()" style="width: 16px; height: 16px; accent-color: var(--accent-cyan);">
+                  Ver Anulaciones y Reactivaciones
+                </label>
+              </div>
               <div class="table-container">
                 <table class="excel-table" id="tablaBitacoraEventos">
                   <thead>
@@ -2283,11 +2409,11 @@
               style="width: 100%;">
           </div>
 
-          <div class="form-group" style="grid-column: span 1;">
-            <label>Procedencia / Lista / Vendedor</label>
-            <div style="display:flex; gap:8px;">
-              <select id="ventaFormVendedor" class="form-select"
-                style="width: 140px; height: 40px; background: rgba(0,0,0,0.5); color:#fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 0.85rem; padding: 0 10px;">
+          <div class="form-group" style="grid-column: span 2;">
+            <label>Procedencia / Lista / Vendedores (Asesoras)</label>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+              <select id="ventaFormVendedor1" class="form-select"
+                style="height: 40px; background: rgba(0,0,0,0.5); color:#fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 0.85rem; padding: 0 10px;">
                 <option value="Daniela G">Daniela G</option>
                 <option value="Lorena">Lorena</option>
                 <option value="Isabella">Isabella</option>
@@ -2297,8 +2423,22 @@
                 <option value="Erica Villegas">Erica Villegas</option>
                 <option value="Pagina Web">Pagina Web</option>
               </select>
-              <input type="text" id="ventaFormLista" class="scraping-input" placeholder="Lista"
-                style="flex:1; font-size: 0.85rem; padding: 0 12px; height: 40px;">
+              <select id="ventaFormVendedor2" class="form-select"
+                style="height: 40px; background: rgba(0,0,0,0.5); color:#fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 0.85rem; padding: 0 10px;">
+                <option value="">-- Sin 2da Asesora --</option>
+                <option value="Daniela G">Daniela G</option>
+                <option value="Lorena">Lorena</option>
+                <option value="Isabella">Isabella</option>
+                <option value="Kimberly">Kimberly</option>
+                <option value="Cristian Angel">Cristian Angel</option>
+                <option value="Daniela Vera">Daniela Vera</option>
+                <option value="Erica Villegas">Erica Villegas</option>
+                <option value="Pagina Web">Pagina Web</option>
+              </select>
+              <select id="ventaFormLista" class="form-select"
+                style="height: 40px; background: rgba(0,0,0,0.5); color:#fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 0.85rem; padding: 0 10px;">
+                <option value="">-- Sin lista --</option>
+              </select>
             </div>
           </div>
 
@@ -2399,6 +2539,40 @@
             </button>
           </div>
           <div id="ventaCodigosRowsContainer" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Las filas se inyectan dinámicamente -->
+          </div>
+        </div>
+
+        <!-- 6. SECCION: DETALLE DE XBOX -->
+        <div
+          style="background: rgba(16, 124, 16, 0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(16, 124, 16, 0.1);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <label class="modal-section-title" style="color:#107c10; margin:0;">
+              <i data-lucide="monitor" class="minimalist-icon"></i> Xbox Registrados
+            </label>
+            <button type="button" onclick="addVentaXboxRow()" class="action-btn-premium"
+              style="width: 30px; height: 30px; border-radius: 50%; background: #107c10; color: #fff; box-shadow: 0 0 10px rgba(16, 124, 16, 0.3);">
+              <i data-lucide="plus" class="minimalist-icon" style="width:14px; height:14px;"></i>
+            </button>
+          </div>
+          <div id="ventaXboxRowsContainer" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Las filas se inyectan dinámicamente -->
+          </div>
+        </div>
+
+        <!-- 7. SECCION: DETALLE DE PRODUCTOS FÍSICOS -->
+        <div
+          style="background: rgba(45, 212, 191, 0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(45, 212, 191, 0.1);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <label class="modal-section-title" style="color:#2dd4bf; margin:0;">
+              <i data-lucide="box" class="minimalist-icon"></i> Productos Físicos
+            </label>
+            <button type="button" onclick="addVentaPhysicalRow()" class="action-btn-premium"
+              style="width: 30px; height: 30px; border-radius: 50%; background: #2dd4bf; color: #000; box-shadow: 0 0 10px rgba(45, 212, 191, 0.3);">
+              <i data-lucide="plus" class="minimalist-icon" style="width:14px; height:14px;"></i>
+            </button>
+          </div>
+          <div id="ventaPhysicalRowsContainer" style="display: flex; flex-direction: column; gap: 8px;">
             <!-- Las filas se inyectan dinámicamente -->
           </div>
         </div>
@@ -2870,6 +3044,118 @@
     </div>
   </div>
 
+  <!-- ══════════════════════════════════════════ -->
+  <!-- MODAL INVENTARIO: XBOX                     -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="modal-overlay" id="modalXboxInventory">
+    <div class="modal-card card-glass" style="max-width: 600px; border-top: 3px solid #107c10;">
+      <div class="modal-header">
+        <h3><i data-lucide="monitor" class="minimalist-icon" style="color: #107c10;"></i> <span id="modalXboxTitle">Ingresar Xbox</span>
+        </h3>
+        <button class="modal-close" onclick="closeXboxModal()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <form id="xboxInventoryForm" onsubmit="event.preventDefault(); saveXboxInventory();">
+        <div class="modal-body">
+          <input type="hidden" id="xboxFormId" value="">
+          <div class="checkout-grid">
+            <div class="form-group">
+              <label>Fecha de Compra</label>
+              <input type="date" id="xboxFormFecha" class="form-input" required>
+            </div>
+            <div class="form-group" style="grid-column: span 2;">
+              <label>Detalle (Juego / Suscripción)</label>
+              <input type="text" id="xboxFormDetalle" class="form-input" placeholder="Ej: Xbox Game Pass Ultimate 12 Meses" required>
+            </div>
+            <div class="form-group">
+              <label>Correo</label>
+              <input type="email" id="xboxFormCorreo" class="form-input" placeholder="correo@ejemplo.com" required>
+            </div>
+            <div class="form-group">
+              <label>Contraseña</label>
+              <input type="text" id="xboxFormPassword" class="form-input" placeholder="••••••••">
+            </div>
+            <div class="form-group">
+              <label>Costo COP</label>
+              <input type="number" id="xboxFormCostoCop" class="form-input" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label>Proveedor</label>
+              <input type="text" id="xboxFormProveedor" class="form-input" placeholder="Nombre del proveedor">
+            </div>
+            <div class="form-group">
+              <label>Estado</label>
+              <select id="xboxFormEstado" class="form-select">
+                <option value="ON">ON</option>
+                <option value="OFF">OFF</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeXboxModal()">Cancelar</button>
+          <button type="submit" class="btn-primary" id="btnSaveXbox" style="background: #107c10; color: #fff;"><i data-lucide="check" class="minimalist-icon"></i> Guardar Xbox</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- MODAL INVENTARIO: PRODUCTOS FISICOS        -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="modal-overlay" id="modalPhysicalInventory">
+    <div class="modal-card card-glass" style="max-width: 600px; border-top: 3px solid var(--accent-cyan);">
+      <div class="modal-header">
+        <h3><i data-lucide="package" class="minimalist-icon" style="color: var(--accent-cyan);"></i> <span id="modalPhysicalTitle">Ingresar Producto Físico</span>
+        </h3>
+        <button class="modal-close" onclick="closePhysicalModal()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <form id="physicalInventoryForm" onsubmit="event.preventDefault(); savePhysicalInventory();">
+        <div class="modal-body">
+          <input type="hidden" id="physicalFormId" value="">
+          <div class="checkout-grid">
+            <div class="form-group">
+              <label>Fecha de Compra</label>
+              <input type="date" id="physicalFormFecha" class="form-input" required>
+            </div>
+            <div class="form-group" style="grid-column: span 2;">
+              <label>Detalle / Producto</label>
+              <input type="text" id="physicalFormDetalle" class="form-input" placeholder="Ej: Control PS5 DualSense Blanco" required>
+            </div>
+            <div class="form-group">
+              <label>Serial / Identificador</label>
+              <input type="text" id="physicalFormSerial" class="form-input" placeholder="Serial del producto">
+            </div>
+            <div class="form-group">
+              <label>Costo COP</label>
+              <input type="number" id="physicalFormCostoCop" class="form-input" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label>Estado</label>
+              <select id="physicalFormEstado" class="form-select">
+                <option value="ON">ON</option>
+                <option value="OFF">OFF</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closePhysicalModal()">Cancelar</button>
+          <button type="submit" class="btn-primary" id="btnSavePhysical"><i data-lucide="check" class="minimalist-icon"></i> Guardar Producto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- MODAL: GESTIÓN DE STOCK IDEAL Y AUDITORÍA -->
   <div class="modal-overlay" id="idealStockModalOverlay">
     <div class="modal-card card-glass" id="idealStockModal" style="max-width: 900px; padding: 0;">
@@ -3185,6 +3471,8 @@
                       id="p_ventas_editar"> Editar Ventas</label>
                   <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" class="perm-chk"
                       id="p_ventas_eliminar"> Eliminar Ventas</label>
+                  <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" class="perm-chk"
+                      id="p_ventas_anular"> Anular Ventas</label>
                 </div>
                 <div>
                   <h5 style="color: var(--text-muted); margin-bottom: 8px;">Módulo: Inventario</h5>
@@ -3256,6 +3544,35 @@
       <div class="modal-body">
         <div id="listadoCodigos2FA" style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
           <!-- Se llena dinámicamente -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: NOTIFICACIONES 2FA (POCOS CÓDIGOS) -->
+  <div class="modal-overlay" id="modal2FANotifOverlay">
+    <div class="modal-card card-glass" style="max-width: 800px; width: 95%;">
+      <div class="modal-header">
+        <h3><i data-lucide="bell" class="minimalist-icon" style="color: var(--accent-yellow);"></i> Cuentas con Pocos Códigos 2FA</h3>
+        <button class="modal-close" onclick="close2FANotifModal()">
+          <i data-lucide="x" class="minimalist-icon" style="width:20px; height:20px;"></i>
+        </button>
+      </div>
+      <div class="modal-body" style="padding-top: 0;">
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Lista de cuentas que tienen 3 o menos códigos de verificación de 2 pasos disponibles.</p>
+        <div class="table-container" style="max-height: 500px; overflow-y: auto;">
+          <table class="excel-table">
+            <thead>
+              <tr class="header">
+                <th style="width: 50px;">ID</th>
+                <th>Juego / Cuenta</th>
+                <th>Correo</th>
+                <th style="width: 120px; text-align: center;">Códigos</th>
+                <th style="width: 100px; text-align: center;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="body2FANotif"></tbody>
+          </table>
         </div>
       </div>
     </div>
