@@ -767,31 +767,7 @@
             </div>
           </div>
 
-          <!-- Socios -->
-          <div class="socios-grid">
-            <div class="card kpi-card socio-card">
-              <div class="kpi-icon icon-socio">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-              </div>
-              <div class="kpi-info">
-                <span class="kpi-label">Socio 1 — <span id="socio1Name">Socio A</span> (50%)</span>
-                <span class="kpi-value" id="kpiSocio1">$0</span>
-                <span class="kpi-cop" id="kpiSocio1Cop">~0 COP</span>
-              </div>
-            </div>
-            <div class="card kpi-card socio-card">
-              <div class="kpi-icon icon-socio">👤</div>
-              <div class="kpi-info">
-                <span class="kpi-label">Socio 2 — <span id="socio2Name">Socio B</span> (50%)</span>
-                <span class="kpi-value" id="kpiSocio2">$0</span>
-                <span class="kpi-cop" id="kpiSocio2Cop">~0 COP</span>
-              </div>
-            </div>
-          </div>
+          <!-- Socios eliminados según solicitud del usuario -->
 
           <div class="dashboard-main-grid">
             <div class="charts-column">
@@ -2674,6 +2650,11 @@
               title="Contraseña del juego">&#91;Contraseña&#93;</button>
             <button class="btn-variable template-var-account" onclick="insertarVariable('{CUENTA_2FA}')"
               title="Código de respaldo">&#91;C. 2FA&#93;</button>
+            <button class="btn-variable" onclick="insertarVariable('{FECHA}')">&#91;Fecha&#93;</button>
+            <button class="btn-variable" onclick="insertarVariable('{CONSOLA}')">&#91;Consola&#93;</button>
+            <button class="btn-variable" onclick="insertarVariable('{CIUDAD}')">&#91;Ciudad&#93;</button>
+            <button class="btn-variable" onclick="insertarVariable('{MEDIO_PAGO}')">&#91;Medio Pago&#93;</button>
+            <button class="btn-variable" onclick="insertarVariable('{ADQUISICION}')">&#91;Adquisición&#93;</button>
           </div>
 
           <!-- Variables para plantillas Multi-Juego (ocultas por defecto) -->

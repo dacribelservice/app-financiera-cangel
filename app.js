@@ -310,10 +310,7 @@ function updateDashboard() {
 
   document.getElementById('kpiJuegos').textContent = AppState.catalog.length;
 
-  // Actualizar Socios
-  const divValue = neta / 2;
-  document.getElementById('kpiSocio1').textContent = `$${divValue.toLocaleString()}`;
-  document.getElementById('kpiSocio2').textContent = `$${divValue.toLocaleString()}`;
+  // Actualizar Socios (Removido según solicitud)
 
   renderTop5();
   updateDashboardCharts();
@@ -328,7 +325,8 @@ function renderTop5() {
 
   const counts = {};
   AppState.sales.forEach(v => {
-    if (v.esta_anulada) return; // Omitir anuladas en ranking top 5
+    // Omitir anuladas y registros parciales de co-ventas para no duplicar el contador de productos
+    if (v.esta_anulada || v.isPartiallyPaid) return; 
     counts[v.juego] = (counts[v.juego] || 0) + 1;
   });
 
@@ -3385,7 +3383,8 @@ function saveLocal() {
     clientsListas: AppState.clientsListas,
     listas: AppState.listas,
     xboxInventory: AppState.xboxInventory,
-    physicalInventory: AppState.physicalInventory
+    physicalInventory: AppState.physicalInventory,
+    plantillas: AppState.plantillas
   }));
   update2FABellBadge();
 }
@@ -3462,6 +3461,7 @@ function loadLocal() {
     AppState.listas = data.listas || [];
     AppState.xboxInventory = data.xboxInventory || [];
     AppState.physicalInventory = data.physicalInventory || [];
+    AppState.plantillas = data.plantillas || {};
 
     // Limpieza automática de datos de prueba antiguos
     const testIds = ["101", "102", "103", "104", "V-675559"];
@@ -6056,7 +6056,12 @@ function copiarFactura(ventaId) {
     .replace(/{VENDEDOR}/g, venta.vendedor || venta.seller || 'Vendedor')
     .replace(/{CUENTA_CORREO}/g, correoCuenta)
     .replace(/{CUENTA_PASS}/g, contrasenaCuenta)
-    .replace(/{2FA}/g, codigo2FA);
+    .replace(/{2FA}/g, codigo2FA)
+    .replace(/{FECHA}/g, venta.fecha || '')
+    .replace(/{CONSOLA}/g, (venta.tipo_cuenta || '').includes('PS5') ? 'PS5' : 'PS4')
+    .replace(/{CIUDAD}/g, venta.ciudad || '')
+    .replace(/{MEDIO_PAGO}/g, venta.pago || '')
+    .replace(/{ADQUISICION}/g, venta.tipo_cliente || '');
 
   if (navigator.clipboard) {
     navigator.clipboard.writeText(textoCopiar)
@@ -6092,13 +6097,17 @@ function copiarFacturaConfirmacion(ventaId) {
     .replace(/{TIPO_CUENTA}/g, venta.tipo_cuenta || '')
     .replace(/{FECHA}/g, venta.fecha || '')
     .replace(/{NOMBRE}/g, venta.nombre_cliente || '')
+    .replace(/{CLIENTE}/g, venta.nombre_cliente || '')
     .replace(/{CONSOLA}/g, consola)
     .replace(/{CEDULA}/g, venta.cedula || '')
     .replace(/{CORREO_CLIENTE}/g, venta.correo || '')
+    .replace(/{EMAIL}/g, venta.correo || '')
     .replace(/{CELULAR}/g, venta.celular || '')
     .replace(/{CIUDAD}/g, venta.ciudad || '')
     .replace(/{VALOR}/g, (venta.venta || 0).toLocaleString('es-CO'))
+    .replace(/{PRECIO}/g, (venta.venta || 0).toLocaleString('es-CO'))
     .replace(/{PAGO}/g, venta.pago || '')
+    .replace(/{MEDIO_PAGO}/g, venta.pago || '')
     .replace(/{VENDEDOR}/g, venta.vendedor || '')
     .replace(/{ADQUISICION}/g, venta.tipo_cliente || '');
 
@@ -6205,6 +6214,9 @@ function renderTopPlataformas() {
   const countsPS5 = {};
 
   AppState.sales.forEach(v => {
+    // Omitir registros parciales de co-ventas para no duplicar en el ranking de productos
+    if (v.isPartiallyPaid) return;
+
     // 1. Intentar obtener el nombre del juego directamente desde el campo 'juego'
     let gameName = (v.juego || '').trim();
 
@@ -6792,17 +6804,22 @@ function renderClientHistory() {
 
     const c = clientMap.get(key);
 
-    // Sumar venta
+    // Sumar venta (Siempre sumamos el valor, ya que en co-ventas se divide el total entre los registros)
     c.totalComprasCOP += (parseFloat(venta.venta) || 0);
-    c.cantidadJuegos += 1;
+    
+    // Solo contamos como una unidad de venta y consola si no es un registro parcial (co-venta)
+    // Esto evita duplicidad cuando dos asesores atienden al mismo cliente por el mismo producto
+    if (!venta.isPartiallyPaid) {
+      c.cantidadJuegos += 1;
 
-    // Identificar Consola desde tipo_cuenta
-    const accountType = (venta.tipo_cuenta || venta.cuenta || '').toUpperCase();
-    const gameName = (venta.juego || '').toUpperCase();
-    if (accountType.includes('PS4') || gameName.includes('PS4')) {
-      c.conteoPS4++;
-    } else if (accountType.includes('PS5') || gameName.includes('PS5')) {
-      c.conteoPS5++;
+      // Identificar Consola desde tipo_cuenta
+      const accountType = (venta.tipo_cuenta || venta.cuenta || '').toUpperCase();
+      const gameName = (venta.juego || '').toUpperCase();
+      if (accountType.includes('PS4') || gameName.includes('PS4')) {
+        c.conteoPS4++;
+      } else if (accountType.includes('PS5') || gameName.includes('PS5')) {
+        c.conteoPS5++;
+      }
     }
 
     // Actualizar campos si vienen vacíos y ahora tienen datos

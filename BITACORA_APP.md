@@ -1,5 +1,5 @@
 # 🧠 BITÁCORA DE CONTEXTO: CANGEL GAMES APP
-**Última Actualización:** 11/03/2026 (V12.2)
+**Última Actualización:** 11/03/2026 (V12.6)
 
 Este documento es el cerebro a largo plazo de la aplicación. Describe la lógica arquitectónica y el estado de los módulos para que cualquier nueva sesión de Antigravity (y el usuario) no pierda el contexto del código.
 
@@ -12,6 +12,19 @@ Este documento es el cerebro a largo plazo de la aplicación. Describe la lógic
 - [x] Fix sold PSN accounts not appearing in the "Cuentas PSN" table by updating `renderCuentasPSN` to check for active sales.
 
 ### 📝 LOG DE VERSIONES
+
+#### [V12.6] - 11/03/2026
+- **Variables Dinámicas en Plantillas:** Agregadas las variables `{FECHA}`, `{CONSOLA}`, `{CIUDAD}`, `{MEDIO_PAGO}` y `{ADQUISICION}` al modal de plantillas y a la lógica de generación de facturas. También se unificaron alias como `{CLIENTE}`, `{EMAIL}` y `{PRECIO}` para mayor facilidad de uso.
+
+#### [V12.5] - 11/03/2026
+- **Fix Persistencia Plantillas:** Corregido el error donde los cambios en las plantillas de mensajes no se guardaban al refrescar la aplicación. Se incluyó el objeto `plantillas` en el sistema de guardado y carga local (`saveLocal`/`loadLocal`).
+
+#### [V12.4] - 11/03/2026
+- **Dashboard Cleanup:** Eliminadas las tarjetas de información de socios (Socio 1 y 2) en el módulo principal de Dashboard por solicitud del usuario para limpiar la interfaz.
+
+#### [V12.3] - 11/03/2026
+- **Fix Reportes Duplicados (Co-Ventas):** Corregido el conteo en Analytics y Dashboard. Los registros marcados como `isPartiallyPaid` (ventas compartidas) ahora solo suman al monto total, pero no incrementan erróneamente los contadores de ventas ni los rankings de productos para evitar duplicidad visual.
+
 
 #### [V12.2] - 11/03/2026
 - **Sincronización Total de Listas:** Implementación bidireccional entre Ventas y Analytics. El campo "Lista" ahora es persistente y retroactivo, sincronizando todas las ventas del cliente al cambiar su lista en Analytics.
