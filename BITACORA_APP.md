@@ -1,5 +1,5 @@
 # 🧠 BITÁCORA DE CONTEXTO: CANGEL GAMES APP
-**Última Actualización:** 10/03/2026 (V12.0)
+**Última Actualización:** 11/03/2026 (V12.1)
 
 Este documento es el cerebro a largo plazo de la aplicación. Describe la lógica arquitectónica y el estado de los módulos para que cualquier nueva sesión de Antigravity (y el usuario) no pierda el contexto del código.
 
@@ -12,6 +12,10 @@ Este documento es el cerebro a largo plazo de la aplicación. Describe la lógic
 - [x] Fix sold PSN accounts not appearing in the "Cuentas PSN" table by updating `renderCuentasPSN` to check for active sales.
 
 ### 📝 LOG DE VERSIONES
+
+#### [V12.1] - 11/03/2026
+- **Fix Ventas Compartidas (Sincronización):** Corrección crítica del inventario. Ahora las ventas con dos asesoras solo descuentan **1 cupo** de stock (ignorando registros con `isPartiallyPaid: true`), eliminando el error de `-1 PRI`.
+- **Deduplicación Visual:** Refactorización de `renderVentas` para agrupar ítems compartidos. El juego aparece una sola vez, el precio se suma automáticamente y las asesoras se muestran apiladas verticalmente.
 
 #### [V12.0] - 10/03/2026
 - **Ventas Compartidas (Dual Seller):** Implementada la capacidad de asignar dos asesoras a una misma venta. El sistema divide automáticamente el precio al 50/50 y genera dos registros de venta vinculados por el mismo ID de transacción, sin duplicar la salida de inventario.
@@ -251,3 +255,11 @@ Absolutamente todos los módulos matemáticos mueren en los Paneles Financieros 
 2. **Refactorización Asíncrona**: Migración a Backend (Supabase/Firebase) con Async/Await.
 3. **Paginación y Búsqueda en Servidor**: Solicitar datos fragmentados para soportar volúmenes masivos (20,000+ registros).
 4. **Seguridad**: Implementar autenticación robusta y roles de usuario por servidor.
+
+### [2026-03-11] - V12.1: Sincronización y Visualización de Ventas Compartidas
+- **Lógica de Doble Registro**: Se identificó que el sistema crea dos objetos de venta vinculados por `transaction_id` para repartir comisiones. Sin embargo, esto duplicaba el descuento en `Cuentas PSN`.
+- **Corrección de Inventario**: Se inyectó la condición `!sale.isPartiallyPaid` en `getGameSlots`, `getPaqueteSlots` y `getMembresiaSlots`. Esto asegura que el stock refleje productos físicos reales y no registros administrativos de comisión.
+- **Visualización en Facturación**: Se modificó `renderVentas` para detectar ítems duplicados dentro de un mismo pedido. 
+- **Deduplicación de Items**: El sistema ahora usa un `Map` para consolidar juegos idénticos, sumando sus valores parciales para mostrar el precio total pagado por el cliente.
+- **Multivendedor Stack**: Si una venta es compartida, la columna "Vendedor" ahora genera un stack vertical de nombres en lugar de mostrar solo a la vendedora principal.
+- **Contador de Juegos**: Se ajustó el badge de cantidad para ignorar registros parciales, mostrando "1 juego" en lugar de "2 juegos" en co-ventas sencillas.

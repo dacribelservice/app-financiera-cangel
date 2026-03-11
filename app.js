@@ -1352,18 +1352,43 @@ function renderVentas() {
     if (isAnulado) tr.classList.add('row-annulled');
 
     if (grupo.tipo === 'multi') {
-      // ── Celda de juegos apilados ──────────────────────────────────────
+      // ── Celda de juegos apilados & Deduplicación de Split Sales ──────────────────
       let totalPedido = 0;
       let juegosCeldaHTML = '';
+      let vendors = new Set();
+      let uniqueItemsSold = 0;
+      
+      // Mapa para deduplicar ítems físicos (mismo inventoryId + mismo tipo_cuenta)
+      // pero manteniendo el precio total de ambos registros.
+      const itemMap = new Map();
 
-      grupo.ventas.forEach((v, i) => {
+      grupo.ventas.forEach(v => {
+        // Recolectar vendedoras
+        if (v.vendedor) vendors.add(v.vendedor);
+        if (v.vendedor1) vendors.add(v.vendedor1);
+        if (v.vendedor2) vendors.add(v.vendedor2);
+
+        const key = `${v.inventoryId}_${v.tipo_cuenta}_${v.productType}`;
+        if (!itemMap.has(key)) {
+          itemMap.set(key, { ...v, totalVenta: v.venta || 0 });
+          if (!v.isPartiallyPaid) uniqueItemsSold++; 
+        } else {
+          const existing = itemMap.get(key);
+          existing.totalVenta += (v.venta || 0);
+        }
+        totalPedido += (v.venta || 0);
+      });
+
+      // Si por alguna razón uniqueItemsSold quedó en 0 (ej: todos marcados isPartiallyPaid por error), 
+      // fallback al length real para no mostrar "0 juegos"
+      const displayQty = uniqueItemsSold || Math.ceil(grupo.ventas.length / 2) || 1;
+
+      let i = 0;
+      itemMap.forEach((v) => {
         const dataInvT = getInventoryItemData(v);
         let juegoNombre = dataInvT.jNombre;
         let correoInfo = dataInvT.cCorreo;
         let passInfo = dataInvT.cPass;
-
-        const precioJuego = v.venta || 0;
-        totalPedido += precioJuego;
 
         const separador = i > 0
           ? '<div style="border-top:1px solid rgba(255,255,255,0.08); margin:5px 0;"></div>'
@@ -1378,18 +1403,22 @@ function renderVentas() {
           <div style="font-size:0.68rem; color:#a78bfa; margin-top:1px;">
             ${v.tipo_cuenta || ''}
             &nbsp;·&nbsp;
-            <span style="color:#4ade80;">$${precioJuego.toLocaleString('es-CO')}</span>
+            <span style="color:#4ade80;">$${v.totalVenta.toLocaleString('es-CO')}</span>
           </div>
-          ${correoInfo ? `<div style="font-size:0.65rem; color:#67e8f9; margin-top:1px;">${correoInfo} | ${passInfo}</div>` : ''}
+          ${correoInfo && correoInfo !== 'No disponible' ? `<div style="font-size:0.65rem; color:#67e8f9; margin-top:1px;">${correoInfo} | ${passInfo}</div>` : ''}
         `;
+        i++;
       });
-
-      // Construir IDs de todas las ventas del grupo para acciones
-      const todosLosIds = grupo.ventas.map(v => v.id).join(',');
 
       const canEdit = hasAccesoTotal || (user.permisos && user.permisos.p_ventas_editar === true);
       const canDelete = hasAccesoTotal || (user.permisos && user.permisos.p_ventas_eliminar === true);
       const canAnnul = hasAccesoTotal || (user.permisos && user.permisos.p_ventas_anular === true);
+
+      // Preparar visualización de vendedores
+      const vendorList = Array.from(vendors);
+      const vendorHTML = vendorList.length > 1 
+        ? vendorList.map(v => `<div style="line-height:1.1; margin-bottom:2px;">${v}</div>`).join('')
+        : (rep.vendedor || '');
 
       tr.innerHTML = `
         <th class="row-number">${rowNum}</th>
@@ -1397,9 +1426,9 @@ function renderVentas() {
         <td>${rep.fecha || ''}</td>
         <td>${rep.hora || ''}</td>
         <td style="padding:8px 6px; line-height:1.4;">${juegosCeldaHTML}</td>
-        <td style="color:#a78bfa; font-size:0.75rem;">${grupo.ventas.length} juegos</td>
+        <td style="color:#a78bfa; font-size:0.75rem;">${displayQty} ${displayQty === 1 ? 'juego' : 'juegos'}</td>
         <td style="font-weight:700; color:#f59e0b;">$${totalPedido.toLocaleString('es-CO')}</td>
-        <td>${rep.vendedor || ''}</td>
+        <td style="font-size:0.75rem;">${vendorHTML}</td>
         <td>${rep.cedula || ''}</td>
         <td>${rep.nombre_cliente || ''}</td>
         <td>${rep.celular || ''}</td>
@@ -1432,6 +1461,7 @@ function renderVentas() {
           </div>
         </td>
       `;
+
 
     } else {
       // ── Fila individual (sin transaction_id) — comportamiento original ──
@@ -1695,7 +1725,7 @@ function getGameSlots(gameId) {
   const used = { p_ps4: 0, s_ps4: 0, p_ps5: 0, s_ps5: 0 };
 
   AppState.sales.forEach(sale => {
-    if (String(sale.inventoryId) === String(game.id) && !sale.esta_anulada) {
+    if (String(sale.inventoryId) === String(game.id) && !sale.esta_anulada && !sale.isPartiallyPaid) {
       if (sale.tipo_cuenta === 'Primaria PS4') used.p_ps4++;
       else if (sale.tipo_cuenta === 'Secundaria PS4') used.s_ps4++;
       else if (sale.tipo_cuenta === 'Primaria PS5') used.p_ps5++;
@@ -1725,7 +1755,7 @@ function getPaqueteSlots(paqueteId) {
   const used = { p_ps4: 0, s_ps4: 0, p_ps5: 0, s_ps5: 0 };
 
   AppState.sales.forEach(sale => {
-    if (String(sale.inventoryId) === String(p.id) && !sale.esta_anulada) {
+    if (String(sale.inventoryId) === String(p.id) && !sale.esta_anulada && !sale.isPartiallyPaid) {
       if (sale.tipo_cuenta === 'Primaria PS4') used.p_ps4++;
       else if (sale.tipo_cuenta === 'Secundaria PS4') used.s_ps4++;
       else if (sale.tipo_cuenta === 'Primaria PS5') used.p_ps5++;
@@ -1755,7 +1785,7 @@ function getMembresiaSlots(membresiaId) {
   const used = { p_ps4: 0, s_ps4: 0, p_ps5: 0, s_ps5: 0 };
 
   AppState.sales.forEach(sale => {
-    if (String(sale.inventoryId) === String(m.id) && sale.estado !== 'Cancelada' && !sale.esta_anulada) {
+    if (String(sale.inventoryId) === String(m.id) && sale.estado !== 'Cancelada' && !sale.esta_anulada && !sale.isPartiallyPaid) {
       if (sale.tipo_cuenta === 'Primaria PS4') used.p_ps4++;
       else if (sale.tipo_cuenta === 'Secundaria PS4') used.s_ps4++;
       else if (sale.tipo_cuenta === 'Primaria PS5') used.p_ps5++;
