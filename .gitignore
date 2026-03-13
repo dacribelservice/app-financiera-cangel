@@ -4,3 +4,6 @@ backups/
 .agent/
 *.log
 .DS_Store
+.env
+backup_complete.zip
+package-lock.json

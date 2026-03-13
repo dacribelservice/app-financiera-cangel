@@ -1878,6 +1878,22 @@
                 </thead>
                 <tbody id="clientsBody"></tbody>
               </table>
+              
+              <!-- Controles de Paginación Premium -->
+              <div id="clientsPagination" style="display:flex; align-items:center; justify-content:center; gap:20px; margin-top:1.5rem; padding:10px;">
+                <button onclick="changeClientsPage(-1)" id="btnPrevClients" class="action-btn-premium" style="width:auto; padding:0 15px; height:36px; gap:8px;">
+                  <i data-lucide="chevron-left" style="width:16px;"></i> Anterior
+                </button>
+                <div id="clientsPageIndicator" style="color:var(--text-light); font-weight:600; font-size:0.9rem;">
+                  Página <span id="clientsCurrentPage">1</span> de <span id="clientsTotalPages">--</span>
+                </div>
+                <button onclick="changeClientsPage(1)" id="btnNextClients" class="action-btn-premium" style="width:auto; padding:0 15px; height:36px; gap:8px;">
+                  Siguiente <i data-lucide="chevron-right" style="width:16px;"></i>
+                </button>
+                <div id="clientsLoadingIndicator" style="display:none; color:var(--accent-cyan); font-weight:700; font-size:0.85rem; letter-spacing:1px; animation: pulse 1.5s infinite;">
+                  <i data-lucide="loader-2" class="spin" style="width:15px; height:15px; margin-right:5px;"></i> CARGANDO...
+                </div>
+              </div>
             </div>
 
             <!-- Vista: Listas -->

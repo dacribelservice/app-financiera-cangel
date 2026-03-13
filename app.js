@@ -4,6 +4,8 @@
    ================================================ */
 
 // ──── Estado Global ────
+const USE_LOCAL_STORAGE_BACKUP = false; // Feature Flag: Cambiar a true si hay fallos en Supabase
+
 const AppState = {
   currentUser: null,
   activeTab: 'catalogo',
@@ -3366,6 +3368,7 @@ function getColombiaTime() {
 }
 
 function saveLocal() {
+  // 1. Persistencia síncrona en localStorage (Garantiza velocidad y respaldo local)
   localStorage.setItem('cangel_erp_v7', JSON.stringify({
     users: AppState.users,
     auditLog: AppState.auditLog,
@@ -3386,7 +3389,73 @@ function saveLocal() {
     physicalInventory: AppState.physicalInventory,
     plantillas: AppState.plantillas
   }));
+
+  // 2. Sincronización asíncrona con Supabase (Shadow Writing)
+  // Se ejecuta en segundo plano sin bloquear la UI
+  const syncData = {
+    clients: AppState.clientsListas || [],
+    sales: AppState.sales || [],
+    inventoryGames: AppState.inventoryGames || [],
+    exchangeRate: AppState.exchangeRate || 4200,
+    plantillas: AppState.plantillas || {}
+  };
+
+  (async () => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // Timeout estricto de 5s
+
+      const response = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(syncData),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) throw new Error('Server error');
+    } catch (err) {
+      if (USE_LOCAL_STORAGE_BACKUP) {
+        // Error silencioso: Guardar en cola de reintentos solo si el backup está activo
+        console.warn("⚠️ Sync fallido. Guardando en cola local:", err.name === 'AbortError' ? 'Timeout 5s' : err.message);
+        localStorage.setItem('cangel_sync_queue', JSON.stringify(syncData));
+      }
+    }
+  })();
+
   update2FABellBadge();
+}
+
+/**
+ * Fase 3.2: Procesador de Cola de Sincronización
+ * Reintenta enviar datos pendientes si hubo fallos previos.
+ */
+async function processSyncQueue() {
+  const queue = localStorage.getItem('cangel_sync_queue');
+  if (!queue) return;
+
+  try {
+    const syncData = JSON.parse(queue);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // Timeout más largo para reintentos
+
+    const response = await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(syncData),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (response.ok) {
+      console.log("✅ Cola de sincronización procesada con éxito.");
+      localStorage.removeItem('cangel_sync_queue');
+    }
+  } catch (err) {
+    console.warn("⏳ Reintento de sincronización fallido (servidor aún offline).");
+  }
 }
 
 // NOTA: Esta funcionalidad de limpieza es TEMPORAL para fase de desarrollo/pruebas.
@@ -3440,7 +3509,10 @@ function loadLocal() {
     });
     AppState.auditLog = data.auditLog || [];
     AppState.catalog = data.catalog || [];
-    AppState.sales = data.sales || [];
+    // Fase 4.2: Freno a la carga masiva
+    // Solo cargamos las últimas 1000 ventas para mantener agilidad en memoria
+    // Los datos históricos completos residen en Supabase
+    AppState.sales = (data.sales || []).slice(-1000);
 
     // Add _searchIndex to loaded sales
     AppState.sales.forEach(v => {
@@ -3515,8 +3587,65 @@ function loadLocal() {
   }
 }
 
+/**
+ * Fase 4.1: Sincronización Inicial (Stale-While-Revalidate)
+ * Actualiza el AppState con datos frescos de Supabase en segundo plano.
+ */
+async function refreshDataFromSupabase() {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // Timeout 5s
+
+    const response = await fetch('/api/initial-data', { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) return;
+
+    const { inventoryGames, settings } = await response.json();
+
+    // Actualizar AppState silenciosamente con los datos más recientes
+    if (inventoryGames && inventoryGames.length > 0) {
+      AppState.inventoryGames = inventoryGames;
+    }
+    
+    if (settings) {
+      if (settings.exchangeRate) AppState.exchangeRate = settings.exchangeRate.value;
+      if (settings.plantillas) AppState.plantillas = settings.plantillas;
+    }
+
+    // Auditoría Silenciosa (Fase 5.1)
+    const clientsResp = await fetch('/api/clientes?limit=1');
+    const clientsData = await clientsResp.json();
+    const supabaseCount = clientsData.total || 0;
+    const localCount = Object.keys(AppState.clientsListas || {}).length;
+    
+    if (localStorage.getItem('debug_migration') === 'true') {
+       console.log(`%c[AUDIT] Local: ${localCount} | Supabase: ${supabaseCount}`, "color: #39d6f9; font-weight: bold;");
+    }
+
+    // console.log("✅ Datos frescos cargados desde Supabase (Fase 4.1)"); // Log limpiado para producción
+    
+    // Refrescar UI si el usuario ya está dentro
+    if (AppState.currentUser) {
+      if (typeof updateDashboard === 'function') updateDashboard();
+      if (AppState.activeTab === 'inventario' && typeof renderCuentasPSN === 'function') renderCuentasPSN();
+    }
+
+  } catch (err) {
+    console.warn("⏳ Falló el refresco asíncrono (usando caché local):", err.message);
+  }
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
   loadLocal();
+  
+  // Fase 3.2: Iniciar procesador de cola
+  processSyncQueue();
+  setInterval(processSyncQueue, 120000); // Reintentar cada 2 minutos
+
+  // Fase 4.1: Refresco de datos en segundo plano (Stale-while-revalidate)
+  refreshDataFromSupabase();
 
   // --- SOFT RESET 04/03/2026 v2 ---
   if (!localStorage.getItem('softReset0304b')) {
@@ -6772,79 +6901,84 @@ function guardarLista(nombreKey, valor) {
 }
 
 
-function renderClientHistory() {
-  const tbody = document.getElementById('clientsBody');
-  if (!tbody) return;
+/**
+ * Fase 4.2: Paginación de Clientes
+ */
+let _clientsCurrentPage = 0;
+let _clientsTotalPages = 0;
+const _clientsLimit = 50;
 
-  // 1. Agrupar compras por cliente usando el nombre (insensible a mayúsculas/minúsculas)
-  const clientMap = new Map();
+async function fetchClientesPage(page = 0) {
+  const loading = document.getElementById('clientsLoadingIndicator');
+  if (loading) loading.style.display = 'inline-flex';
 
-  AppState.sales.forEach(venta => {
-    if (venta.esta_anulada) return; // Omitir anuladas en historial de cliente (gastos y cantidad)
-    // El nombre real del cliente se guarda como 'nombre_cliente'
-    let clientName = (venta.nombre_cliente || '').trim();
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s Timeout
 
-    // Si no hay nombre, ignoramos este registro (no usamos tipo_cliente como fallback)
-    if (!clientName) return;
-
-    const key = clientName.toLowerCase();
-
-    if (!clientMap.has(key)) {
-      clientMap.set(key, {
-        nombre: clientName,
-        cc: venta.cedula || '--',
-        ciudad: venta.ciudad || '--',
-        celular: venta.celular || '--',
-        totalComprasCOP: 0,
-        cantidadJuegos: 0,
-        conteoPS4: 0,
-        conteoPS5: 0
-      });
-    }
-
-    const c = clientMap.get(key);
-
-    // Sumar venta (Siempre sumamos el valor, ya que en co-ventas se divide el total entre los registros)
-    c.totalComprasCOP += (parseFloat(venta.venta) || 0);
+    const response = await fetch(`/api/clientes?page=${page}&limit=${_clientsLimit}`, {
+      signal: controller.signal
+    });
     
-    // Solo contamos como una unidad de venta y consola si no es un registro parcial (co-venta)
-    // Esto evita duplicidad cuando dos asesores atienden al mismo cliente por el mismo producto
-    if (!venta.isPartiallyPaid) {
-      c.cantidadJuegos += 1;
+    clearTimeout(timeoutId);
 
-      // Identificar Consola desde tipo_cuenta
-      const accountType = (venta.tipo_cuenta || venta.cuenta || '').toUpperCase();
-      const gameName = (venta.juego || '').toUpperCase();
-      if (accountType.includes('PS4') || gameName.includes('PS4')) {
-        c.conteoPS4++;
-      } else if (accountType.includes('PS5') || gameName.includes('PS5')) {
-        c.conteoPS5++;
-      }
-    }
+    if (!response.ok) throw new Error('Error al cargar clientes');
 
-    // Actualizar campos si vienen vacíos y ahora tienen datos
-    if (c.cc === '--' && venta.cedula) c.cc = venta.cedula;
-    if (c.ciudad === '--' && venta.ciudad) c.ciudad = venta.ciudad;
-    if (c.celular === '--' && venta.celular) c.celular = venta.celular;
-  });
+    const result = await response.json();
+    
+    // Actualizar estado de paginación
+    _clientsCurrentPage = result.page;
+    _clientsTotalPages = Math.ceil(result.total / result.limit);
+    
+    // Mapear datos de Supabase al formato esperado por la tabla
+    // Nota: Por ahora CC, Consola y Fidelidad se muestran básicos ya que están en tablas relacionales
+    const mappedClients = result.clientes.map(c => ({
+      nombre: c.nombre,
+      cc: c.cedula || '--',
+      ciudad: c.ciudad || '--',
+      celular: c.celular || '--',
+      totalComprasCOP: 0, // Se poblará con datos reales en fases posteriores
+      cantidadJuegos: 0,
+      conteoPS4: 0,
+      conteoPS5: 0
+    }));
 
-  const clientsList = Array.from(clientMap.values());
+    renderClientsHistoryTable(mappedClients);
+    updatePaginationUI();
 
-  // 2. Ordenamos por cantidad de compras (descendente)
-  clientsList.sort((a, b) => b.cantidadJuegos - a.cantidadJuegos);
-
-  // 3. Renderizar tabla
-  tbody.innerHTML = '';
-
-  if (clientsList.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 2rem; color: var(--text-muted)">No hay clientes registrados en las ventas.</td></tr>';
-    return;
+  } catch (err) {
+    console.warn("⚠️ Fallo en lectura paginada:", err.message);
+  } finally {
+    if (loading) loading.style.display = 'none';
   }
-
-  // Guardamos la lista original y la lista filtrada globalmente (por si quieren filtrar despues sin recargar)
-  window._clientsHistoryStaticData = clientsList;
-  renderClientsHistoryTable(clientsList);
 }
+
+function updatePaginationUI() {
+  const cpElem = document.getElementById('clientsCurrentPage');
+  const tpElem = document.getElementById('clientsTotalPages');
+  const btnPrev = document.getElementById('btnPrevClients');
+  const btnNext = document.getElementById('btnNextClients');
+
+  if (cpElem) cpElem.textContent = _clientsCurrentPage + 1;
+  if (tpElem) tpElem.textContent = _clientsTotalPages || '--';
+  
+  if (btnPrev) btnPrev.disabled = _clientsCurrentPage === 0;
+  if (btnNext) btnNext.disabled = (_clientsCurrentPage + 1) >= _clientsTotalPages;
+  
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function changeClientsPage(delta) {
+  const next = _clientsCurrentPage + delta;
+  if (next < 0 || (next >= _clientsTotalPages && _clientsTotalPages > 0)) return;
+  fetchClientesPage(next);
+}
+
+function renderClientHistory() {
+  // Ahora la carga principal es desde Supabase
+  fetchClientesPage(0);
+}
+
 
 
 

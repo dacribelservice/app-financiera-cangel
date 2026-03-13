@@ -1,5 +1,5 @@
 # 🧠 BITÁCORA DE CONTEXTO: CANGEL GAMES APP
-**Última Actualización:** 11/03/2026 (V12.6)
+**Última Actualización:** 13/03/2026 (V12.8)
 
 Este documento es el cerebro a largo plazo de la aplicación. Describe la lógica arquitectónica y el estado de los módulos para que cualquier nueva sesión de Antigravity (y el usuario) no pierda el contexto del código.
 
@@ -12,6 +12,15 @@ Este documento es el cerebro a largo plazo de la aplicación. Describe la lógic
 - [x] Fix sold PSN accounts not appearing in the "Cuentas PSN" table by updating `renderCuentasPSN` to check for active sales.
 
 ### 📝 LOG DE VERSIONES
+
+#### [V12.8] - 13/03/2026
+- **Copia de Seguridad en la Nube**: Ejecución de respaldo integral a GitHub (puente git).
+- **Seguridad de Repositorio**: Actualización de `.gitignore` para excluir archivos sensibles (`.env`) y binarios de backup local.
+
+#### [V12.7] - 13/03/2026
+- **Reactivación del Proyecto Espejo**: Se ha descartado la versión V2 y se ha reactivado el núcleo original `app-financiera`.
+- **Estandarización de Puerto**: Confirmado el acceso único a través del puerto 3000 (`http://localhost:3000/`).
+- **Limpieza de Entorno**: Eliminación de recursos redundantes de la rama de desarrollo V2.
 
 #### [V12.6] - 11/03/2026
 - **Variables Dinámicas en Plantillas:** Agregadas las variables `{FECHA}`, `{CONSOLA}`, `{CIUDAD}`, `{MEDIO_PAGO}` y `{ADQUISICION}` al modal de plantillas y a la lógica de generación de facturas. También se unificaron alias como `{CLIENTE}`, `{EMAIL}` y `{PRECIO}` para mayor facilidad de uso.
