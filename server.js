@@ -5,7 +5,7 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
 // Configuración Supabase
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -17,6 +17,32 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' })); // Para manejar AppState grandes
 app.use(express.static(path.join(__dirname)));
 
+// --- UTILIDADES ---
+function formatDateToISO(dateStr) {
+    if (!dateStr) return new Date().toISOString().split('T')[0];
+    
+    // Si ya es YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+    
+    // Si es D/M/YYYY o DD/MM/YYYY
+    if (dateStr.includes('/')) {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+            let [d, m, y] = parts;
+            d = d.padStart(2, '0');
+            m = m.padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+    }
+    
+    try {
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    } catch (e) {}
+    
+    return new Date().toISOString().split('T')[0];
+}
+
 // --- API ENDPOINTS ---
 
 /**
@@ -24,12 +50,18 @@ app.use(express.static(path.join(__dirname)));
  * Recibe el AppState y persiste datos de forma atómica.
  */
 app.post('/api/sync', async (req, res) => {
-    try {
-        const { clients, sales, inventoryGames, exchangeRate, plantillas } = req.body;
+    const { clients, sales, inventoryGames, exchangeRate, plantillas } = req.body;
+    const syncResults = { clients: 'skipped', sales: 'skipped', inventory: 'skipped', settings: 'skipped' };
 
-        // 1. Sincronizar Clientes (Upsert por Cédula)
-        if (clients && clients.length > 0) {
-            const clientesToSync = clients.map(c => ({
+    // 1. Sincronizar Clientes
+    try {
+        let clientsArray = [];
+        if (clients) {
+            clientsArray = Array.isArray(clients) ? clients : Object.values(clients);
+        }
+
+        if (clientsArray.length > 0) {
+            const clientesToSync = clientsArray.map(c => ({
                 cedula: c.cedula,
                 nombre: c.nombre_cliente || c.nombre,
                 email: c.correo || c.email,
@@ -39,35 +71,94 @@ app.post('/api/sync', async (req, res) => {
             })).filter(c => c.cedula);
 
             if (clientesToSync.length > 0) {
-                await supabase.from('clientes').upsert(clientesToSync, { onConflict: 'cedula' });
+                const { error } = await supabase.from('clientes').upsert(clientesToSync, { onConflict: 'cedula' });
+                if (error) throw error;
+                syncResults.clients = 'success';
             }
         }
+    } catch (error) {
+        console.error('Error sincronizando clientes:', error);
+        syncResults.clients = `error: ${error.message}`;
+    }
 
-        // 2. Sincronizar Inventario de Juegos
+    // 2. Sincronizar Inventario de Juegos
+    try {
         if (inventoryGames && inventoryGames.length > 0) {
             const gamesToSync = inventoryGames.map(g => ({
+                local_id: String(g.id),
                 juego: g.juego || g.nombre,
-                costo_usd: g.costo_usd || g.compra,
-                costo_cop: g.costo_cop || g.costo,
+                costo_usd: parseFloat(g.costo_usd || g.compra || 0),
+                costo_cop: parseFloat(g.costo_cop || g.costo || 0),
                 correo: g.correo,
                 password: g.password || g.pass,
+                correo_hosting: g.correo_hosting,
+                password_hosting: g.password_hosting,
                 region: g.region,
-                estado: g.estado || 'ON'
+                estado: g.estado || 'ON',
+                es_ps4: g.es_ps4 !== undefined ? g.es_ps4 : true,
+                es_ps5: g.es_ps5 !== undefined ? g.es_ps5 : true,
+                cupos_ps4_primaria: g.cupos_ps4_primaria || 2,
+                cupos_ps4_secundaria: g.cupos_ps4_secundaria || 1,
+                cupos_ps5_primaria: g.cupos_ps5_primaria || 2,
+                cupos_ps5_secundaria: g.cupos_ps5_secundaria || 1
             }));
-            await supabase.from('inventory_games').upsert(gamesToSync, { onConflict: 'juego' });
-        }
 
-        // 3. Guardar Configuración (TRM y Plantillas)
-        await supabase.from('settings').upsert([
+            const { error } = await supabase.from('inventory_games').upsert(gamesToSync, { onConflict: 'local_id' });
+            if (error) throw error;
+            syncResults.inventory = 'success';
+        }
+    } catch (error) {
+        console.error('Error sincronizando inventario:', error);
+        syncResults.inventory = `error: ${error.message}`;
+    }
+
+    // 3. Sincronizar Ventas
+    try {
+        if (sales && sales.length > 0) {
+            const { data: dbClients } = await supabase.from('clientes').select('id, cedula');
+            const clientMap = {};
+            if (dbClients) {
+                dbClients.forEach(c => { clientMap[c.cedula] = c.id; });
+            }
+
+            const salesToSync = sales.map(s => ({
+                local_id: String(s.id),
+                transaction_id: s.transaction_id || `TX-${s.id}`,
+                cliente_id: clientMap[s.cedula] || null,
+                vendedor_1: s.vendedor || s.vendedor1 || s.asesor,
+                vendedor_2: s.vendedor2 || null,
+                juego_nombre: s.juego,
+                precio_venta: parseFloat(s.venta || s.precio || 0),
+                metodo_pago: s.pago,
+                fecha: formatDateToISO(s.fecha),
+                esta_anulada: s.esta_anulada === true,
+                is_partially_paid: s.isPartiallyPaid === true,
+                nota: s.nota || ""
+            }));
+
+            const { error } = await supabase.from('sales').upsert(salesToSync, { onConflict: 'local_id' });
+            if (error) throw error;
+            syncResults.sales = 'success';
+        }
+    } catch (error) {
+        console.error('Error sincronizando ventas:', error);
+        syncResults.sales = `error: ${error.message}`;
+    }
+
+    // 4. Guardar Configuración
+    try {
+        const { error } = await supabase.from('settings').upsert([
             { key: 'exchangeRate', value: { value: exchangeRate || 4200 } },
             { key: 'plantillas', value: plantillas || {} }
         ]);
-
-        res.status(200).json({ status: 'success', message: 'Sync completado' });
+        if (error) throw error;
+        syncResults.settings = 'success';
     } catch (error) {
-        console.error('Error en Sync:', error);
-        res.status(500).json({ status: 'error', message: error.message });
+        console.error('Error sincronizando configuración:', error);
+        syncResults.settings = `error: ${error.message}`;
     }
+
+    res.status(200).json({ status: 'partial_complete', results: syncResults });
 });
 
 /**

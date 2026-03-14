@@ -1,5 +1,5 @@
 /* ================================================
-   CANGEL GAMES ERP — Súper Gestión Integral (V11.7)
+   CANGEL GAMES ERP — Súper Gestión Integral (V13.0)
    7 Módulos · Roles · Ecommerce · IA & Hosting
    ================================================ */
 
@@ -3392,8 +3392,26 @@ function saveLocal() {
 
   // 2. Sincronización asíncrona con Supabase (Shadow Writing)
   // Se ejecuta en segundo plano sin bloquear la UI
+  
+  // Extraer clientes únicos de las ventas para sincronizar metadatos
+  const uniqueClients = {};
+  if (Array.isArray(AppState.sales)) {
+    AppState.sales.forEach(v => {
+      if (v.cedula && !uniqueClients[v.cedula]) {
+        uniqueClients[v.cedula] = {
+          cedula: v.cedula,
+          nombre: v.nombre_cliente || v.cliente,
+          celular: v.celular,
+          email: v.correo || v.email,
+          ciudad: v.ciudad,
+          lista_id: (AppState.clientsListas || {})[(v.nombre_cliente || '').toLowerCase()] || v.lista || null
+        };
+      }
+    });
+  }
+
   const syncData = {
-    clients: AppState.clientsListas || [],
+    clients: Object.values(uniqueClients),
     sales: AppState.sales || [],
     inventoryGames: AppState.inventoryGames || [],
     exchangeRate: AppState.exchangeRate || 4200,

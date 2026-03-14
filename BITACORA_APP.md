@@ -1,5 +1,5 @@
 # 🧠 BITÁCORA DE CONTEXTO: CANGEL GAMES APP
-**Última Actualización:** 13/03/2026 (V12.8)
+**Última Actualización:** 14/03/2026 (V13.1)
 
 Este documento es el cerebro a largo plazo de la aplicación. Describe la lógica arquitectónica y el estado de los módulos para que cualquier nueva sesión de Antigravity (y el usuario) no pierda el contexto del código.
 
@@ -13,14 +13,10 @@ Este documento es el cerebro a largo plazo de la aplicación. Describe la lógic
 
 ### 📝 LOG DE VERSIONES
 
-#### [V12.8] - 13/03/2026
-- **Copia de Seguridad en la Nube**: Ejecución de respaldo integral a GitHub (puente git).
-- **Seguridad de Repositorio**: Actualización de `.gitignore` para excluir archivos sensibles (`.env`) y binarios de backup local.
-
-#### [V12.7] - 13/03/2026
-- **Reactivación del Proyecto Espejo**: Se ha descartado la versión V2 y se ha reactivado el núcleo original `app-financiera`.
-- **Estandarización de Puerto**: Confirmado el acceso único a través del puerto 3000 (`http://localhost:3000/`).
-- **Limpieza de Entorno**: Eliminación de recursos redundantes de la rama de desarrollo V2.
+#### [V13.0] - 13/03/2026
+- **Estandarización de Puerto**: Hardcode de puerto 3000 en el servidor y enlace de acceso oficial: `http://localhost:3000/`.
+- **Evolución Arquitectónica**: Reactivación del núcleo original `app-financiera`, descartando la versión V2 y limpieza de recursos redundantes del entorno.
+- **Seguridad y Respaldo**: Ejecución de backup integral a GitHub y actualización de `.gitignore` para protección de archivos sensibles (`.env`) y binarios.
 
 #### [V12.6] - 11/03/2026
 - **Variables Dinámicas en Plantillas:** Agregadas las variables `{FECHA}`, `{CONSOLA}`, `{CIUDAD}`, `{MEDIO_PAGO}` y `{ADQUISICION}` al modal de plantillas y a la lógica de generación de facturas. También se unificaron alias como `{CLIENTE}`, `{EMAIL}` y `{PRECIO}` para mayor facilidad de uso.
@@ -278,8 +274,8 @@ Absolutamente todos los módulos matemáticos mueren en los Paneles Financieros 
 
 ## 5. 🚀 Roadmap de Escalabilidad (Post-MVP)
 1. **Modularización**: Desacoplar `app.js` en submódulos (`api.js`, `ventas.js`, `analytics.js`).
-2. **Refactorización Asíncrona**: Migración a Backend (Supabase/Firebase) con Async/Await.
-3. **Paginación y Búsqueda en Servidor**: Solicitar datos fragmentados para soportar volúmenes masivos (20,000+ registros).
+2. [x] **Refactorización Asíncrona**: Migración a Backend (Supabase) con Async/Await.
+3. [x] **Paginación y Búsqueda en Servidor**: Implementado para Clientes (20,000+ registros).
 4. **Seguridad**: Implementar autenticación robusta y roles de usuario por servidor.
 
 ### [2026-03-11] - V12.1: Sincronización y Visualización de Ventas Compartidas
@@ -289,3 +285,17 @@ Absolutamente todos los módulos matemáticos mueren en los Paneles Financieros 
 - **Deduplicación de Items**: El sistema ahora usa un `Map` para consolidar juegos idénticos, sumando sus valores parciales para mostrar el precio total pagado por el cliente.
 - **Multivendedor Stack**: Si una venta es compartida, la columna "Vendedor" ahora genera un stack vertical de nombres en lugar de mostrar solo a la vendedora principal.
 - **Contador de Juegos**: Se ajustó el badge de cantidad para ignorar registros parciales, mostrando "1 juego" en lugar de "2 juegos" en co-ventas sencillas.
+
+#### [V12.7] - 13/03/2026
+- **Migración a Supabase (Data Bridge)**: Implementación de arquitectura de "Escritura Dual" (Local Storage + Cloud) mediante un backend en Node.js/Express (`server.js`).
+- **Endpoint /api/sync**: Creación de un puente de datos inteligente que procesa Inventario, Ventas y Clientes con aislamiento de errores (bloques try/catch independientes).
+- **Normalización de Fechas**: El backend ahora traduce automáticamente formatos de fecha locales ("D/M/YYYY") a ISO-8601 para compatibilidad estricta con PostgreSQL.
+- **Fix Crítico de Clientes**: Se corrigió la fuga de datos en la sincronización. El sistema ahora extrae automáticamente el "perfil" del cliente (cédula, nombre, tel, email) desde `AppState.sales` y lo vincula con su `lista_id` antes de enviarlo a Supabase.
+- **Paginación Masiva (Fase 4.2)**: Capacidad para visualizar más de 20,000 clientes mediante carga fragmentada (/api/clientes) y controles de navegación (Anterior/Siguiente) en la UI, manteniendo la fluidez del navegador.
+
+#### [V13.0] - 14/03/2026
+- **Estandarización de Puerto**: Hardcode de puerto 3000 en el servidor y enlace de acceso oficial: `http://localhost:3000/`.
+- **Evolución Arquitectónica**: Reactivación del núcleo original `app-financiera`, descartando la versión V2 y limpieza de recursos redundantes del entorno.
+- **Seguridad y Respaldo**: Ejecución de backup integral a GitHub y actualización de `.gitignore` para protección de archivos sensibles (`.env`) y binarios.
+- **Audit Log Sync**: La bitácora de eventos local ahora se sincroniza silenciosamente con el servidor para mantener un rastro de auditoría centralizado.
+
