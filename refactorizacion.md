@@ -13,7 +13,8 @@
 - [x] Fase 1.2: Crear el "Bridge Global" en `app.js` exponiendo las funciones de UI críticas al objeto `window` para no romper el HTML.
 
 ### 🟢 FASE 2: EXTRACCIÓN DE UTILIDADES PURAS
-- [ ] Fase 2.1: Crear `utils/formatters.js` e `utils/validators.js`. Extraer y exportar las funciones utilitarias e importarlas en `app.js`.
+- [x] Fase 2.1: Crear `utils/formatters.js`. Extraer y exportar las funciones utilitarias e importarlas en `app.js`.
+- [ ] Fase 2.2: Crear `utils/validators.js`. (Próximamente).
 
 ### 🔵 FASE 3: ESTADO GLOBAL
 - [ ] Fase 3.1: Crear `core/store.js` y extraer el objeto `AppState`. Importarlo en `app.js`.
@@ -104,17 +105,38 @@
 | #9 | SyntaxError en Botones Inventario | Mal escapado de strings en `onclick` dinámicos. | Envueltos argumentos `${item.id}` en comillas simples. | ✅ Fixed |
 | #10 | Botones Huérfanos en Balance | Funciones de añadir gastos e ingresos no expuestas. | Inyectadas `addExpense`, `addIngreso`, etc. en `GlobalBridge`. | ✅ Fixed |
 | #11 | Navegación Huérfana en Bitácora | `switchBitacoraTab` y `renderBitacoraEventos` no vinculadas. | Añadidas al puente global y verificadas con tests. | ✅ Fixed |
+| #12 | Extracción de Utilidades | Primera fragmentación de `app.js` exitosa. | Movidos 5 formateadores a `utils/formatters.js`. | ✅ Fixed |
 
 ## 🛑 PUNTO DE CONTROL (CHECKPOINT ACTUAL)
 
-**Estado:** Finalizando la **Fase 1.2 - Global Bridge Cobertura Total OK**.
+**Estado:** **FASE 2.1 COMPLETADA** ✅ | Iniciando **Fase 2.2 (Validators)**.
 **Progreso:**
-- Los módulos de **Inventario**, **Ventas**, **Analytics**, **Balance** y **Bitácora** son 100% funcionales y cuentan con cobertura de pruebas (37 tests en verde).
-- Se resolvió el error de "Ghosting" en las sugerencias de búsqueda.
-- Toda la interactividad de la UI está ahora mediada por el `GlobalBridge`.
+- **Refactorización:** Se han eliminado las primeras ~100 líneas redundantes de `app.js`.
+- **Módulos:** El sistema ya utiliza importaciones ES6 para utilidades.
+- **Estabilidad:** 37/37 tests siguen pasando tras la fragmentación.
 
-**Próximo Paso Inmediato:**
-1. Realizar una auditoría final de seguridad (usuarios y permisos).
-2. Declarar **Fase 1 completada**.
-3. Iniciar la **Fase 2**: Refactorización modular (extracción de lógica a módulos ESM independientes).
-```
+**Próximo Paso Inmediato (Fase 2.2):**
+1. Identificar funciones de validación (ej. `checkDuplicateGameEmail`, etc.).
+2. Extraer a `utils/validators.js`.
+3. Validar con suite de pruebas.
+
+---
+
+**Chet List de Fase 2.1 (Completada):**
+1. **Preparación de Infraestructura:**
+   - [x] Crear la carpeta `utils`.
+   - [x] Crear el archivo `utils/formatters.js`.
+2. **Identificación y Extracción (CORTAR de `app.js`):**
+   - [x] `formatCOP` (Línea 40).
+   - [x] `formatUSD` (Línea 48).
+   - [x] `getColombiaTime` (Línea 3366).
+   - [x] `calculateMembershipCountdown` (Línea 1809).
+   - [x] `formatDaysToMonths` (Línea 1834).
+3. **Integración y Limpieza:**
+   - [x] Exportar funciones desde `formatters.js`.
+   - [x] Importar en `app.js` con extensión `.js`.
+   - [x] Eliminar definiciones redundantes en `app.js`.
+4. **Prueba de Regresión:**
+   - [x] Ejecutar `npm run test` (37/37 OK).
+5. **Documentación:**
+   - [x] Registrar éxito en bitácora.
