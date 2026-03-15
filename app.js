@@ -6,7 +6,7 @@
 // ──── Estado Global ────
 const USE_LOCAL_STORAGE_BACKUP = false; // Feature Flag: Cambiar a true si hay fallos en Supabase
 
-const AppState = {
+export const AppState = {
   currentUser: null,
   activeTab: 'catalogo',
   activeFilter: 'semana',
@@ -174,6 +174,7 @@ function applyPermissions() {
 }
 
 function getFirstAllowedTab(user) {
+  if (!user || !user.permisos) return 'catalogo';
   if (user.permisos.acceso_total) return 'dashboard';
   const ordenTabs = ['dashboard', 'analisis', 'catalogo', 'inventario', 'ventas', 'analytics', 'balance', 'bitacora'];
   for (let tab of ordenTabs) {
@@ -1039,6 +1040,8 @@ function switchVentasMode(mode) {
 }
 
 function renderCuentasPSN() {
+  const user = AppState.currentUser;
+  if (!user) return;
   const tbody = document.getElementById('cuentasPsnBody');
   if (!tbody) return;
   tbody.innerHTML = '';
@@ -4424,7 +4427,8 @@ function filterInventoryGames() {
 }
 
 function renderInventoryJuegos() {
-  console.log("Rendering Inventory Juegos - Premium v3");
+  const user = AppState.currentUser;
+  if (!user) return;
   const tbody = document.getElementById('inventoryGamesBody');
   if (!tbody) return;
 
@@ -4487,23 +4491,23 @@ function renderInventoryJuegos() {
           <i data-lucide="${isON ? 'check-circle' : 'clock'}" style="width:10px; height:10px;"></i> ${item.estado || 'OFF'}
         </span>
         <label class="premium-switch">
-          <input type="checkbox" ${isON ? 'checked' : ''} onchange="toggleGameStatus(${item.id})">
+          <input type="checkbox" ${isON ? 'checked' : ''} onchange="toggleGameStatus('${item.id}')">
           <span class="switch-slider"></span>
         </label>
       </div>
     `;
 
     const user = AppState.currentUser;
-    const hasAccesoTotal = user.permisos && user.permisos.acceso_total === true;
-    const canEdit = hasAccesoTotal || (user.permisos && user.permisos.p_inventario_editar === true);
-    const canDelete = hasAccesoTotal || (user.permisos && user.permisos.p_inventario_eliminar === true);
+    const hasAccesoTotal = user?.permisos?.acceso_total === true;
+    const canEdit = hasAccesoTotal || user?.permisos?.p_inventario_editar === true;
+    const canDelete = hasAccesoTotal || user?.permisos?.p_inventario_eliminar === true;
 
     // Botones de acción estilo premium (cuadrados blancos con iconos negros/transparentes)
     const actionButtons = `
       <div style="display:flex; gap:10px; justify-content:center;">
-        <button class="action-btn-premium view-btn" onclick="openModalHistorialVentas(${item.id})" title="Ver Historial de Ventas"><i data-lucide="eye" class="minimalist-icon" style="width:16px; height:16px;"></i></button>
-        ${canEdit ? `<button class="action-btn-premium edit-btn" onclick="editGameInventory(${item.id})" title="Editar"><i data-lucide="edit-3" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
-        ${canDelete ? `<button class="action-btn-premium delete-btn" onclick="deleteGameInventory(${item.id})" title="Eliminar"><i data-lucide="trash-2" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
+        <button class="action-btn-premium view-btn" onclick="openModalHistorialVentas('${item.id}')" title="Ver Historial de Ventas"><i data-lucide="eye" class="minimalist-icon" style="width:16px; height:16px;"></i></button>
+        ${canEdit ? `<button class="action-btn-premium edit-btn" onclick="editGameInventory('${item.id}')" title="Editar"><i data-lucide="edit-3" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
+        ${canDelete ? `<button class="action-btn-premium delete-btn" onclick="deleteGameInventory('${item.id}')" title="Eliminar"><i data-lucide="trash-2" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
       </div>
     `;
 
@@ -4755,16 +4759,16 @@ function renderInventoryXbox() {
           <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
             <span class="status-label-premium ${isON ? 'active' : 'used'}">${item.estado || 'OFF'}</span>
             <label class="premium-switch">
-              <input type="checkbox" ${isON ? 'checked' : ''} onchange="toggleXboxStatus(${item.id})">
+              <input type="checkbox" ${isON ? 'checked' : ''} onchange="toggleXboxStatus('${item.id}')">
               <span class="switch-slider"></span>
             </label>
           </div>
         </td>
         <td>
           <div style="display:flex; gap:10px; justify-content:center;">
-            <button class="action-btn-premium view-btn" onclick="openModalXbox(${item.id}, true)" title="Ver"><i data-lucide="eye" class="minimalist-icon" style="width:16px; height:16px;"></i></button>
-            ${canEdit ? `<button class="action-btn-premium edit-btn" onclick="openModalXbox(${item.id})" title="Editar"><i data-lucide="edit-3" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
-            ${canDelete ? `<button class="action-btn-premium delete-btn" onclick="deleteXbox(${item.id})" title="Eliminar"><i data-lucide="trash-2" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
+            <button class="action-btn-premium view-btn" onclick="openModalXbox('${item.id}', true)" title="Ver"><i data-lucide="eye" class="minimalist-icon" style="width:16px; height:16px;"></i></button>
+            ${canEdit ? `<button class="action-btn-premium edit-btn" onclick="openModalXbox('${item.id}')" title="Editar"><i data-lucide="edit-3" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
+            ${canDelete ? `<button class="action-btn-premium delete-btn" onclick="deleteXbox('${item.id}')" title="Eliminar"><i data-lucide="trash-2" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
           </div>
         </td>
       </tr>
@@ -4923,16 +4927,16 @@ function renderInventoryPhysical() {
           <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
             <span class="status-label-premium ${isON ? 'active' : 'used'}">${item.estado || 'OFF'}</span>
             <label class="premium-switch">
-              <input type="checkbox" ${isON ? 'checked' : ''} onchange="togglePhysicalStatus(${item.id})">
+              <input type="checkbox" ${isON ? 'checked' : ''} onchange="togglePhysicalStatus('${item.id}')">
               <span class="switch-slider"></span>
             </label>
           </div>
         </td>
         <td>
           <div style="display:flex; gap:10px; justify-content:center;">
-            <button class="action-btn-premium view-btn" onclick="openModalPhysical(${item.id}, true)" title="Ver"><i data-lucide="eye" class="minimalist-icon" style="width:16px; height:16px;"></i></button>
-            ${canEdit ? `<button class="action-btn-premium edit-btn" onclick="openModalPhysical(${item.id})" title="Editar"><i data-lucide="edit-3" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
-            ${canDelete ? `<button class="action-btn-premium delete-btn" onclick="deletePhysical(${item.id})" title="Eliminar"><i data-lucide="trash-2" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
+            <button class="action-btn-premium view-btn" onclick="openModalPhysical('${item.id}', true)" title="Ver"><i data-lucide="eye" class="minimalist-icon" style="width:16px; height:16px;"></i></button>
+            ${canEdit ? `<button class="action-btn-premium edit-btn" onclick="openModalPhysical('${item.id}')" title="Editar"><i data-lucide="edit-3" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
+            ${canDelete ? `<button class="action-btn-premium delete-btn" onclick="deletePhysical('${item.id}')" title="Eliminar"><i data-lucide="trash-2" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
           </div>
         </td>
       </tr>
@@ -5131,7 +5135,7 @@ function renderInventoryCodigos() {
         </td>
         <td style="text-align:center">
           <button class="action-btn-premium" 
-                  onclick="toggleCodigoUsed(${item.id})" 
+                  onclick="toggleCodigoUsed('${item.id}')" 
                   style="background: ${isUsed ? '#10b981' : 'transparent'}; color: ${isUsed ? '#000' : (isON ? '#10b981' : 'rgba(255,255,255,0.1)')}; border: 1px solid ${isUsed ? '#10b981' : (isON ? '#10b981' : 'rgba(255,255,255,0.1)')}; cursor: ${isON ? 'pointer' : 'not-allowed'}"
                   ${!isON && !isUsed ? 'disabled' : ''}
                   title="${isUsed ? 'Marcar como No Usado' : 'Marcar como Usado'}">
@@ -5142,7 +5146,7 @@ function renderInventoryCodigos() {
           <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
             <span class="status-label-premium ${isON ? 'active' : 'used'}">${isON ? 'ON' : 'OFF'}</span>
             <label class="premium-switch">
-              <input type="checkbox" ${isON ? 'checked' : ''} onchange="toggleCodigoStatus(${item.id})">
+              <input type="checkbox" ${isON ? 'checked' : ''} onchange="toggleCodigoStatus('${item.id}')">
               <span class="switch-slider"></span>
             </label>
           </div>
@@ -5151,7 +5155,7 @@ function renderInventoryCodigos() {
           <div style="display:flex; gap:10px; justify-content:center;">
             <button class="action-btn-premium" onclick="copyToClipboard('${item.codigo}')" title="Copiar Código"><i data-lucide="copy" class="minimalist-icon" style="width:16px; height:16px;"></i></button>
             ${(hasAccesoTotal || (user.permisos && user.permisos.p_inventario_eliminar === true)) ? `
-            <button class="action-btn-premium delete-btn" onclick="deleteCodigoInventory(${item.id})" title="Eliminar"><i data-lucide="trash-2" class="minimalist-icon" style="width:16px; height:16px;"></i></button>
+            <button class="action-btn-premium delete-btn" onclick="deleteCodigoInventory('${item.id}')" title="Eliminar"><i data-lucide="trash-2" class="minimalist-icon" style="width:16px; height:16px;"></i></button>
             ` : ''}
           </div>
         </td>
@@ -6191,6 +6195,8 @@ function copiarFactura(ventaId) {
   let codigo2FA = dataInv2.c2fa;
   let juegoNombreVisual = dataInv2.jNombre;
 
+  const plantilla = AppState.plantillas[tipoCuenta] || AppState.plantillas['Factura'] || '';
+
   const textoCopiar = plantilla
     .replace(/{CLIENTE}/g, clienteNombre)
     .replace(/{CEDULA}/g, clienteCedula)
@@ -7136,7 +7142,7 @@ function savePaqueteInventory() {
 function renderInventoryPaquetes() {
   const user = AppState.currentUser;
   if (!user) return;
-  const hasAccesoTotal = user.permisos && user.permisos.acceso_total === true;
+  const hasAccesoTotal = user?.permisos?.acceso_total === true;
 
   const tbody = document.getElementById('inventoryPaquetesBody');
   if (!tbody) return;
@@ -7165,7 +7171,7 @@ function renderInventoryPaquetes() {
           <i data-lucide="${isON ? 'check-circle' : 'clock'}" style="width:10px; height:10px;"></i> ${p.estado || 'OFF'}
         </span>
         <label class="premium-switch">
-          <input type="checkbox" ${isON ? 'checked' : ''} onchange="togglePaqueteStatus(${p.id})">
+          <input type="checkbox" ${isON ? 'checked' : ''} onchange="togglePaqueteStatus('${p.id}')">
           <span class="switch-slider"></span>
         </label>
       </div>
@@ -7173,11 +7179,11 @@ function renderInventoryPaquetes() {
 
     const actionButtons = `
       <div style="display:flex; gap:10px; justify-content:center;">
-        <button class="action-btn-premium view-btn" onclick="openModalHistorialVentas(${p.id})" title="Ver Historial de Ventas"><i data-lucide="eye" class="minimalist-icon" style="width:16px; height:16px;"></i></button>
+        <button class="action-btn-premium view-btn" onclick="openModalHistorialVentas('${p.id}')" title="Ver Historial de Ventas"><i data-lucide="eye" class="minimalist-icon" style="width:16px; height:16px;"></i></button>
         ${(hasAccesoTotal || (user.permisos && user.permisos.p_inventario_editar)) ? `
-        <button class="action-btn-premium edit-btn" onclick="openModalPaquete(${p.id})" title="Editar"><i data-lucide="edit-3" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
+        <button class="action-btn-premium edit-btn" onclick="openModalPaquete('${p.id}')" title="Editar"><i data-lucide="edit-3" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
         ${(hasAccesoTotal || (user.permisos && user.permisos.p_inventario_eliminar)) ? `
-        <button class="action-btn-premium delete-btn" onclick="deletePaquete(${p.id})" title="Eliminar"><i data-lucide="trash-2" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
+        <button class="action-btn-premium delete-btn" onclick="deletePaquete('${p.id}')" title="Eliminar"><i data-lucide="trash-2" class="minimalist-icon" style="width:16px; height:16px;"></i></button>` : ''}
       </div>
     `;
 
@@ -7385,6 +7391,8 @@ function saveMembresiaInventory() {
 }
 
 function renderInventoryMembresias() {
+  const user = AppState.currentUser;
+  if (!user) return;
   const tbody = document.getElementById('inventoryMembresiasBody');
   if (!tbody) return;
   tbody.innerHTML = '';
@@ -7972,3 +7980,225 @@ function close2FANotifModal() {
   const modal = document.getElementById('modal2FANotifOverlay');
   if (modal) modal.classList.remove('show');
 }
+
+// ================================================
+// BRIDGE GLOBAL (FASE 1.2 - REFORZADO)
+// Exponer funciones críticas al objeto window para 
+// mantener compatibilidad con eventos inline del HTML
+// ================================================
+const GlobalBridge = {
+  // Navegación y Sesión
+  switchTab,
+  doLogin,
+  doLogout,
+  recuperarPassword,
+  
+  // Ventas (Modal y Filas)
+  openModalVenta,
+  closeModalVenta,
+  addVentaGameRow,
+  addVentaPaqueteRow,
+  addVentaMembresiaRow,
+  addVentaCodigoRow,
+  addVentaXboxRow,
+  addVentaPhysicalRow,
+  removeVentaGameRow,
+  removeVentaPaqueteRow,
+  removeVentaMembresiaRow,
+  removeVentaCodigoRow,
+  removeVentaXboxRow,
+  removeVentaPhysicalRow,
+  
+  // Ventas (Lógica y Acciones)
+  saveVentaDataForm,
+  anularPedidoCompleto,
+  eliminarPedidoCompleto,
+  anularFactura,
+  renderVentas,
+  limpiarFiltrosVentas,
+  deleteVenta,
+  closeModalDetallesVenta,
+  closeModalHistorialVentas,
+  handleVentasSearchDebounce,
+  switchVentasMode,
+  renderCuentasPSN,
+  updateCuentaPsnStatus,
+  copiarFactura,
+  copiarFacturaConfirmacion,
+  verDetallesVenta,
+  showFactura,
+  closeFactura,
+  handleVentaGameAutocomplete,
+  selectVentaGameSuggestion,
+  handleVentaPaqueteAutocomplete,
+  selectVentaPaqueteSuggestion,
+  handleVentaMembresiaAutocomplete,
+  selectVentaMembresiaSuggestion,
+  handleVentaCodigoAutocomplete,
+  selectVentaCodigoSuggestion,
+  handleVentaXboxAutocomplete,
+  selectVentaXboxSuggestion,
+  handleVentaPhysicalAutocomplete,
+  selectVentaPhysicalSuggestion,
+  selectGameSuggestion,
+  
+  // Inventario
+  openModalJuego,
+  closeModalJuego,
+  saveGameInventory,
+  openModalCodigo,
+  closeModalCodigo,
+  saveCodigoInventory,
+  stepCodigo,
+  updateCodigoRowMax,
+  openModalPaquete,
+  closeModalPaquete,
+  savePaqueteInventory,
+  openModalMembresia,
+  closeModalMembresia,
+  saveMembresiaInventory,
+  renderInventoryJuegos,
+  editGameInventory,
+  openModalHistorialVentas,
+  renderCuentasPSN,
+  toggleGameStatus,
+  getGameSlots,
+  deleteGameInventory,
+  deleteCodigoInventory,
+  deletePaquete,
+  deleteMembresia,
+  filterInventoryGames,
+  filterInventoryCodes,
+  filterInventoryXbox,
+  filterInventoryPhysical,
+  filterInventoryPaquetes,
+  filterInventoryMembresias,
+  renderInventoryXbox,
+  renderInventoryPhysical,
+  renderInventoryCodigos,
+  renderInventoryPaquetes,
+  renderInventoryMembresias,
+  toggleCodigoStatus,
+  toggleCodigoUsed,
+  toggleXboxStatus,
+  togglePhysicalStatus,
+  togglePaqueteStatus,
+  toggleMembresiaStatus,
+  switchInvMode,
+  toggleStatusFilter,
+  selectStatusFilter,
+  toggleDenomFilter,
+  selectDenomFilter,
+  openModalXbox,
+  closeXboxModal,
+  saveXboxInventory,
+  deleteXbox,
+  openModalPhysical,
+  closePhysicalModal,
+  savePhysicalInventory,
+  deletePhysical,
+  
+  // Catálogo y Carrito
+  renderCatalog,
+  removeFromCatalog,
+  addToCartFromCard,
+  addToCart,
+  toggleCart,
+  renderCart,
+  openCheckout,
+  closeCheckout,
+  confirmCheckout,
+  
+  // Balance y Gastos
+  updateBalance,
+  addExpense,
+  renderExpenses,
+  eliminarGasto,
+  prepararEdicionGasto,
+  addIngreso,
+  renderIngresos,
+  eliminarIngreso,
+  prepararEdicionIngreso,
+  
+  // Bitácora
+  switchBitacoraTab,
+  renderBitacoraEventos,
+  confirmarLimpiezaDatos,
+  
+  // Análisis de Precios (PS Store)
+  updateGlobalTRM,
+  editAnalysisImage,
+  updateAnalysisData,
+  deleteAnalysis,
+  
+  // Analytics y Clientes
+  initAnalytics,
+  renderTopPlataformas,
+  renderRankingAsesores,
+  renderClientHistory,
+  filterClients,
+  changeClientsPage,
+  fetchClientesPage,
+  switchClientTab,
+  renderListas,
+  asignarClienteALista,
+  guardarLista,
+  autocompletarCliente,
+  abrirModalSorteo,
+  abrirModalCrearLista,
+  confirmarCrearLista,
+  eliminarListaNombrada,
+  
+  // Plantillas
+  openModalPlantillas,
+  closeModalPlantillas,
+  insertarVariable,
+  guardarPlantilla,
+  cargarPlantillaSeleccionada,
+  actualizarPanelVariables,
+  
+  // Gestión de Usuarios y Otros
+  openModalUsuario,
+  closeModalUsuario,
+  saveUsuario,
+  toggleEstadoUsuario,
+  toggleAllPermissions,
+  updateChecklistFromRole,
+  open2FAModal,
+  closeModal2FA,
+  open2FANotifModal,
+  close2FANotifModal,
+  use2FACode,
+  update2FABellBadge,
+  openIdealStockModal,
+  closeIdealStockModal,
+  renderIdealStockAudit,
+  downloadAuditExcel,
+  processPDF,
+  handleGameAutocomplete,
+  checkDuplicateGameEmail,
+  
+  // UI Helpers (Modales Globales)
+  showPremiumAlert,
+  showPremiumPrompt,
+  showDeleteConfirmModal,
+  closePremiumAlert,
+  closePremiumPrompt,
+  closeDeleteConfirmModal,
+  executeDeleteAction,
+  showToast
+};
+
+// Exponer al objeto global window individualmente para acceso directo desde HTML
+Object.keys(GlobalBridge).forEach(key => {
+  if (typeof GlobalBridge[key] !== 'undefined') {
+    window[key] = GlobalBridge[key];
+  } else {
+    console.warn(`[Bridge Global] Intento de exponer funcin inexistente: ${key}`);
+  }
+});
+
+// También exponer el objeto 'app' por si se usa esa nomenclatura
+window.app = GlobalBridge;
+
+export default GlobalBridge;
