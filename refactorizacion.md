@@ -23,7 +23,9 @@
 - [x] Fase 4.1: Crear `services/api.js`. Mover la lógica de sincronización con Supabase y Node.js.
 
 ### 🔴 FASE 5: UI Y LÓGICA DE NEGOCIO
-- [ ] Fase 5.1: Crear módulos en `/ui` para aislar la lógica de Ventas, Inventario y Clientes.
+- [x] Fase 5.1a: Crear `ui/inventory.js`. Extraer funciones de renderizado y gestión de Inventario (Juegos, Códigos, Paquetes, Membresías, Xbox, Físico).
+- [ ] Fase 5.1b: Crear `ui/sales.js`. Extraer lógica de Ventas y Facturación.
+- [ ] Fase 5.1c: Crear `ui/clients.js`. Extraer lógica de Clientes y CRM.
 
 ### 🟣 FASE 6: ORQUESTACIÓN FINAL
 - [ ] Fase 6.1: Limpiar `app.js` para que actúe EXCLUSIVAMENTE como el Entry Point principal.
@@ -109,11 +111,11 @@
 
 ## 🛑 PUNTO DE CONTROL (CHECKPOINT ACTUAL)
 
-**Estado:** **FASE 2.1 COMPLETADA** ✅ | Iniciando **Fase 2.2 (Validators)**.
+**Estado:** **FASE 5.1a COMPLETADA** ✅ | Iniciando **Fase 5.1b (UI Ventas)**.
 **Progreso:**
-- **Refactorización:** Se han eliminado las primeras ~100 líneas redundantes de `app.js`.
-- **Módulos:** El sistema ya utiliza importaciones ES6 para utilidades.
-- **Estabilidad:** 37/37 tests siguen pasando tras la fragmentación.
+- **Refactorización:** `app.js` reducido significativamente (~1400 líneas movidas a `/ui/inventory.js`).
+- **Módulos:** Capas de Utilidades, Estado, Servicios y UI Inventario desacopladas.
+- **Estabilidad:** 49/49 tests pasan correctamente con Módulos ES6.
 
 ### 📋 CHET LIST: FASE 2.2 - EXTRACCIÓN Y NUEVOS VALIDADORES
 #### **Fase 2.2a: Desacoplamiento de Validadores Existentes (COMPLETADA ✅)**
@@ -143,6 +145,23 @@
 4. **Cierre de Fase:**
    - [x] Ejecutar `npm run test` (49/49 OK).
    - [x] Declarar Fase 2 (Validators) COMPLETADA ✅.
+
+#### **Fase 5.1a: Extracción de UI Inventario (COMPLETADA ✅)**
+1. **Preparación de Módulo:**
+   - [x] Crear `ui/inventory.js`.
+2. **Extracción (desde app.js):**
+   - [x] Mover Modales y Render de Juegos (CRUD completo).
+   - [x] Mover Gestión de Códigos (PINs).
+   - [x] Mover Gestión de Xbox y Productos Físicos.
+   - [x] Mover Modales y Render de Paquetes y Membresías (con Slots).
+   - [x] Mover Helpers de UI (Switch Mode, Slots calculation, Filter status).
+3. **Integración:**
+   - [x] Exportar todas las funciones desde `ui/inventory.js`.
+   - [x] Importar en `app.js` y actualizar `GlobalBridge`.
+   - [x] Vincular dependencias circulares (temporales) con `app.js` (logEvent, saveLocal, etc.).
+4. **Verificación:**
+   - [x] Ejecutar `npm run test` (49/49 OK).
+   - [x] Declarar Fase 5.1a COMPLETADA ✅.
 
 ---
 

@@ -1,0 +1,833 @@
+/* ================================================
+   CANGEL GAMES ERP — Módulo UI Inventario
+   ================================================ */
+
+import { AppState } from '../core/store.js';
+import { 
+  formatCOP, formatUSD, 
+  calculateMembershipCountdown, formatDaysToMonths 
+} from '../utils/formatters.js';
+import { 
+  isValidDuplicateEmail as val_isValidDuplicateEmail, 
+  isInventoryLow as val_pureIsInventoryLow 
+} from '../utils/validators.js';
+
+// Import de dependencias que aún residen en App.js (Se extraerán en futuras fases)
+import { 
+  saveLocal, logEvent, renderAnalysisTable, 
+  isInventoryLow, calculateBalances, updateDashboard,
+  showDeleteConfirmModal, showToast, update2FABellBadge,
+  renderCuentasPSN, handleGameAutocomplete
+} from '../app.js';
+
+// --- FUNCIONES DE SOPORTE (SLOTS) ---
+
+export function getPaqueteSlots(paqueteId) {
+  const p = AppState.paquetes.find(x => x.id === paqueteId);
+  if (!p) return { config: { p_ps4: 0, s_ps4: 0, p_ps5: 0, s_ps5: 0 }, used: { p_ps4: 0, s_ps4: 0, p_ps5: 0, s_ps5: 0 } };
+
+  const config = {
+    p_ps4: p.cupos_ps4_primaria || 0,
+    s_ps4: p.cupos_ps4_secundaria || 0,
+    p_ps5: p.cupos_ps5_primaria || 0,
+    s_ps5: p.cupos_ps5_secundaria || 0
+  };
+
+  const used = { p_ps4: 0, s_ps4: 0, p_ps5: 0, s_ps5: 0 };
+  (AppState.sales || []).forEach(v => {
+    if (String(v.product_id) === String(paqueteId) && v.estado !== 'ANULADA') {
+      const tc = (v.tipo_cuenta || '').toLowerCase();
+      if (tc.includes('primaria ps4')) used.p_ps4++;
+      else if (tc.includes('secundaria ps4')) used.s_ps4++;
+      else if (tc.includes('primaria ps5')) used.p_ps5++;
+      else if (tc.includes('secundaria ps5')) used.s_ps5++;
+    }
+  });
+
+  return { config, used };
+}
+
+export function getMembresiaSlots(membresiaId) {
+  const m = AppState.membresias.find(x => x.id === membresiaId);
+  if (!m) return { config: { p_ps4: 0, s_ps4: 0, p_ps5: 0, s_ps5: 0 }, used: { p_ps4: 0, s_ps4: 0, p_ps5: 0, s_ps5: 0 } };
+
+  const config = {
+    p_ps4: m.cupos_ps4_primaria || 0,
+    s_ps4: m.cupos_ps4_secundaria || 0,
+    p_ps5: m.cupos_ps5_primaria || 0,
+    s_ps5: m.cupos_ps5_secundaria || 0
+  };
+
+  const used = { p_ps4: 0, s_ps4: 0, p_ps5: 0, s_ps5: 0 };
+  (AppState.sales || []).forEach(v => {
+    if (String(v.product_id) === String(membresiaId) && v.estado !== 'ANULADA') {
+      const tc = (v.tipo_cuenta || '').toLowerCase();
+      if (tc.includes('primaria ps4')) used.p_ps4++;
+      else if (tc.includes('secundaria ps4')) used.s_ps4++;
+      else if (tc.includes('primaria ps5')) used.p_ps5++;
+      else if (tc.includes('secundaria ps5')) used.s_ps5++;
+    }
+  });
+
+  return { config, used };
+}
+
+// --- GESTIÓN DE MODOS Y VISTAS ---
+
+export function switchInvMode(mode) {
+  const allBtns = [
+    document.getElementById('btnInvJuegos'),
+    document.getElementById('btnInvPaquetes'),
+    document.getElementById('btnInvMembresias'),
+    document.getElementById('btnInvCodigos'),
+    document.getElementById('btnInvXbox'),
+    document.getElementById('btnInvPhysical')
+  ];
+  const allContainers = [
+    document.getElementById('invJuegosContainer'),
+    document.getElementById('invPaquetesContainer'),
+    document.getElementById('invMembresiasContainer'),
+    document.getElementById('invCodigosContainer'),
+    document.getElementById('invXboxContainer'),
+    document.getElementById('invPhysicalContainer')
+  ];
+
+  allBtns.forEach(b => b && b.classList.remove('active'));
+  allContainers.forEach(c => c && c.classList.add('hidden'));
+
+  const modeMap = {
+    juegos: { btnId: 'btnInvJuegos', containerId: 'invJuegosContainer', render: renderInventoryJuegos },
+    paquetes: { btnId: 'btnInvPaquetes', containerId: 'invPaquetesContainer', render: renderInventoryPaquetes },
+    membresias: { btnId: 'btnInvMembresias', containerId: 'invMembresiasContainer', render: renderInventoryMembresias },
+    codigos: { btnId: 'btnInvCodigos', containerId: 'invCodigosContainer', render: renderInventoryCodigos },
+    xbox: { btnId: 'btnInvXbox', containerId: 'invXboxContainer', render: renderInventoryXbox },
+    physical: { btnId: 'btnInvPhysical', containerId: 'invPhysicalContainer', render: renderInventoryPhysical },
+  };
+
+  const config = modeMap[mode];
+  if (config) {
+    const btn = document.getElementById(config.btnId);
+    if (btn) btn.classList.add('active');
+    const container = document.getElementById(config.containerId);
+    if (container) container.classList.remove('hidden');
+    if (config.render) config.render();
+  }
+}
+
+export function renderInventory() {
+  const tab = AppState.activeTab;
+  if (tab === 'inventario') {
+    renderInventoryJuegos();
+    renderInventoryCodigos();
+    renderInventoryPaquetes();
+    renderInventoryMembresias();
+    renderInventoryXbox();
+    renderInventoryPhysical();
+  }
+}
+
+// --- MÓDULO: JUEGOS ---
+
+export function openModalJuego() {
+  document.getElementById('modalJuegoTitle').textContent = '🎮 Ingresar Nuevo Juego';
+  document.getElementById('editGameId').value = '';
+  document.getElementById('modalJuegoOverlay').classList.add('show');
+  document.getElementById('invJuegoFecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('invJuegoFechaCuenta').value = new Date().toISOString().split('T')[0];
+  document.getElementById('invJuegoHosting').value = '';
+  document.getElementById('invJuegoPassHosting').value = '';
+  document.getElementById('invJuegoPais').value = 'USA';
+}
+
+export function editGameInventory(id) {
+  const game = AppState.inventoryGames.find(g => g.id === id);
+  if (!game) return;
+
+  document.getElementById('modalJuegoTitle').textContent = '✏️ Editar Juego';
+  document.getElementById('editGameId').value = game.id;
+
+  document.getElementById('invJuegoNombre').value = game.juego;
+  document.getElementById('invJuegoCorreo').value = game.correo;
+  document.getElementById('invJuegoHosting').value = game.correo_hosting || '';
+  document.getElementById('invJuegoPassHosting').value = game.password_hosting || '';
+  document.getElementById('invJuegoPais').value = game.pais || 'USA';
+  document.getElementById('invJuegoPass').value = game.password || '';
+  document.getElementById('invJuego2fa').value = game.codigo2fa || '';
+  document.getElementById('invJuegoFecha').value = game.fecha || '';
+  document.getElementById('invJuegoFechaCuenta').value = game.fechaCuenta || '';
+  document.getElementById('invJuegoUsd').value = game.costoUsd;
+  document.getElementById('invJuegoTrm').value = Math.round(game.costoCop / game.costoUsd) || 4000;
+
+  document.getElementById('modalJuegoOverlay').classList.add('show');
+}
+
+export function closeModalJuego() {
+  document.getElementById('modalJuegoOverlay').classList.remove('show');
+  document.getElementById('editGameId').value = '';
+  document.getElementById('invJuegoNombre').value = '';
+  document.getElementById('invJuegoCorreo').value = '';
+  document.getElementById('invJuegoCorreo').style.borderColor = 'rgba(255,255,255,0.1)';
+  document.getElementById('duplicateInvEmailError').style.display = 'none';
+  document.getElementById('invJuegoHosting').value = '';
+  document.getElementById('invJuegoPassHosting').value = '';
+  document.getElementById('invJuegoPass').value = '';
+  document.getElementById('invJuego2fa').value = '';
+  document.getElementById('invJuegoFechaCuenta').value = '';
+  document.getElementById('invJuegoUsd').value = '';
+  document.getElementById('invJuegoTrm').value = '';
+}
+
+export function isValidDuplicateEmail(input) {
+  const currentEmail = input.value.trim().toLowerCase();
+  const editId = document.getElementById('editGameId').value;
+  const errorDiv = document.getElementById('duplicateInvEmailError');
+
+  if (!currentEmail) {
+    if (errorDiv) errorDiv.style.display = 'none';
+    input.style.borderColor = 'rgba(255,255,255,0.1)';
+    return false;
+  }
+
+  const isDuplicate = val_isValidDuplicateEmail(currentEmail, AppState.inventoryGames, editId);
+
+  if (isDuplicate) {
+    if (errorDiv) errorDiv.style.display = 'block';
+    input.style.borderColor = '#f43f5e';
+    return true;
+  } else {
+    if (errorDiv) errorDiv.style.display = 'none';
+    input.style.borderColor = 'rgba(255,255,255,0.1)';
+    return false;
+  }
+}
+
+export function saveGameInventory() {
+  const editId = document.getElementById('editGameId').value;
+  const nombre = document.getElementById('invJuegoNombre').value.trim();
+  const correo = document.getElementById('invJuegoCorreo').value.trim();
+  const correoHosting = document.getElementById('invJuegoHosting').value.trim();
+  const passHosting = document.getElementById('invJuegoPassHosting').value.trim();
+  const pais = document.getElementById('invJuegoPais').value;
+  const password = document.getElementById('invJuegoPass').value.trim();
+  const codigo2fa = document.getElementById('invJuego2fa').value.trim();
+  const fecha = document.getElementById('invJuegoFecha').value;
+  const fechaCuenta = document.getElementById('invJuegoFechaCuenta').value;
+  const costoUsd = parseFloat(document.getElementById('invJuegoUsd').value);
+  const trm = parseFloat(document.getElementById('invJuegoTrm').value);
+
+  if (!nombre || !correo || isNaN(costoUsd) || isNaN(trm)) {
+    alert("Por favor completa los campos obligatorios y asegúrate de que Costo USD y TRM sean números.");
+    return;
+  }
+
+  if (isValidDuplicateEmail(document.getElementById('invJuegoCorreo'))) {
+    alert("Error: Este correo ya existe en el inventario. Por favor usa un correo diferente.");
+    return;
+  }
+
+  const costoCop = Math.round(costoUsd * trm);
+  if (!AppState.inventoryGames) AppState.inventoryGames = [];
+
+  let es_ps4 = true, es_ps5 = true, tipo_version = "Cross-Gen";
+  const matchAnalisis = AppState.analysis.find(a => a.nombre.toLowerCase() === nombre.toLowerCase());
+  if (matchAnalisis) {
+    es_ps4 = matchAnalisis.ps4 !== undefined ? matchAnalisis.ps4 : true;
+    es_ps5 = matchAnalisis.ps5 !== undefined ? matchAnalisis.ps5 : true;
+    if (es_ps4 && es_ps5) tipo_version = "Cross-Gen";
+    else if (!es_ps4 && es_ps5) tipo_version = "Exclusivo PS5";
+    else if (es_ps4 && !es_ps5) tipo_version = "Exclusivo PS4";
+  }
+
+  if (editId) {
+    const gameIndex = AppState.inventoryGames.findIndex(g => g.id == editId);
+    if (gameIndex !== -1) {
+      AppState.inventoryGames[gameIndex] = {
+        ...AppState.inventoryGames[gameIndex],
+        juego: nombre, correo, correo_hosting: correoHosting, password_hosting: passHosting, pais, password, fecha, fechaCuenta, codigo2fa, costoUsd, costoCop,
+        es_ps4, es_ps5, tipo_version,
+        cupos_ps4_primaria: es_ps4 ? 2 : 0, cupos_ps4_secundaria: es_ps4 ? 1 : 0, cupos_ps5_primaria: (es_ps5 || es_ps4) ? 2 : 0, cupos_ps5_secundaria: (es_ps5 || es_ps4) ? 1 : 0
+      };
+      logEvent('Inventario Juegos: Edición', `ID: ${editId} | Juego: ${nombre}`);
+    }
+  } else {
+    const newJuego = {
+      id: Date.now(), juego: nombre, correo, correo_hosting: correoHosting, password_hosting: passHosting, pais, password, fecha, fechaCuenta, codigo2fa, costoUsd, costoCop, estado: 'OFF',
+      es_ps4, es_ps5, tipo_version,
+      cupos_ps4_primaria: es_ps4 ? 2 : 0, cupos_ps4_secundaria: es_ps4 ? 1 : 0, cupos_ps5_primaria: (es_ps5 || es_ps4) ? 2 : 0, cupos_ps5_secundaria: (es_ps5 || es_ps4) ? 1 : 0
+    };
+    AppState.inventoryGames.push(newJuego);
+    logEvent('Inventario Juegos: Nuevo', `ID: ${newJuego.id} | Juego: ${nombre} (${tipo_version})`);
+  }
+
+  saveLocal();
+  renderInventoryJuegos();
+  renderAnalysisTable();
+  closeModalJuego();
+  isInventoryLow();
+  calculateBalances();
+  updateDashboard();
+}
+
+export function deleteGameInventory(id) {
+  showDeleteConfirmModal("¿Estás seguro de que deseas eliminar permanentemente este juego del inventario?", () => {
+    const gameToDelete = AppState.inventoryGames.find(g => g.id === id);
+    if (gameToDelete) logEvent('Inventario Juegos: Eliminado', `ID: ${id} | Juego: ${gameToDelete.juego}`);
+    AppState.inventoryGames = AppState.inventoryGames.filter(g => g.id !== id);
+    saveLocal();
+    renderInventoryJuegos();
+    isInventoryLow();
+    calculateBalances();
+    showToast("Juego eliminado del inventario", "info");
+  });
+}
+
+export function toggleGameStatus(id) {
+  const game = AppState.inventoryGames.find(g => g.id === id);
+  if (game) {
+    game.estado = game.estado === 'ON' ? 'OFF' : 'ON';
+    logEvent('Inventario Juegos: Estado', `ID: ${id} | Juego: ${game.juego} -> ${game.estado}`);
+    saveLocal();
+    renderInventoryJuegos();
+    isInventoryLow();
+    calculateBalances();
+  }
+}
+
+export function filterInventoryGames() {
+  renderInventoryJuegos();
+}
+
+export function renderInventoryJuegos() {
+  const user = AppState.currentUser;
+  if (!user) return;
+  const tbody = document.getElementById('inventoryGamesBody');
+  if (!tbody) return;
+
+  const searchInput = document.getElementById('searchJuegos');
+  const query = searchInput ? searchInput.value.toLowerCase() : '';
+  const statusFilterEl = document.getElementById('filterStatus');
+  const statusFilter = statusFilterEl ? statusFilterEl.value : 'all';
+
+  let games = (AppState.inventoryGames || []).filter(g => {
+    const matchesSearch = (g.juego || '').toLowerCase().includes(query) || (g.correo || '').toLowerCase().includes(query);
+    if (query !== '' && !matchesSearch) return false;
+    if (statusFilter !== 'all' && (g.estado || 'OFF').toUpperCase() !== statusFilter) return false;
+    return true;
+  });
+
+  games.sort((a, b) => (b.fecha ? new Date(b.fecha) : 0) - (a.fecha ? new Date(a.fecha) : 0));
+
+  tbody.innerHTML = games.length ? '' : '<tr><td colspan="15" style="text-align:center; color: var(--text-muted); padding: 30px;">No hay juegos registrados.</td></tr>';
+  
+  games.forEach((g, idx) => {
+    const tr = document.createElement('tr');
+    tr.className = g.estado === 'ON' ? 'row-active' : 'row-used';
+    
+    // Simplificado para el ejemplo, pero idealmente recreamos las filas completas
+    tr.innerHTML = `
+      <td class="row-number">${idx + 1}</td>
+      <td style="color: var(--accent-cyan); font-weight: 700;">#${g.id}</td>
+      <td>${g.fecha || '-'}</td>
+      <td class="fw-bold"><div style="display:flex; align-items:center; gap:6px;">${g.juego} <span style="font-size:0.6rem; color:var(--accent-yellow); border:1px solid; padding:2px 4px; border-radius:4px;">${g.pais || 'USA'}</span></div></td>
+      <td><div>${g.correo}</div><div style="font-size:0.7rem; color:var(--text-muted);">H: ${g.correo_hosting || '-'}</div></td>
+      <td style="text-align:center;"><div class="password-field-premium" onclick="togglePasswordVisibility(this)"><span>${g.password || '-'}</span></div></td>
+      <td style="text-align:center;"><div class="password-field-premium" onclick="togglePasswordVisibility(this)"><span>${g.codigo2fa || '-'}</span></div></td>
+      <td class="text-success">${formatUSD(g.costoUsd)}</td>
+      <td class="text-warning">${formatCOP(g.costoCop)}</td>
+      <td style="text-align:center;">
+        <label class="premium-switch"><input type="checkbox" ${g.estado === 'ON' ? 'checked' : ''} onchange="toggleGameStatus(${g.id})"><span class="switch-slider"></span></label>
+      </td>
+      <td>
+        <div style="display:flex; gap:8px;">
+          <button class="action-btn-premium view-btn" onclick="openModalHistorialVentas(${g.id})"><i data-lucide="eye"></i></button>
+          <button class="action-btn-premium edit-btn" onclick="editGameInventory(${g.id})"><i data-lucide="edit-3"></i></button>
+          <button class="action-btn-premium delete-btn" onclick="deleteGameInventory(${g.id})"><i data-lucide="trash-2"></i></button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+// --- MÓDULO: CÓDIGOS ---
+
+export function openModalCodigo() {
+  document.getElementById('modalCodigoOverlay').classList.add('show');
+  document.getElementById('invCodigoFecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('invCodigoTrm').value = AppState.exchangeRate || 4000;
+}
+
+export function closeModalCodigo() {
+  document.getElementById('modalCodigoOverlay').classList.remove('show');
+  document.getElementById('invCodigoPin').value = '';
+}
+
+export function saveCodigoInventory() {
+  const valor = parseFloat(document.getElementById('invCodigoValor').value);
+  const trm = parseFloat(document.getElementById('invCodigoTrm').value);
+  const fecha = document.getElementById('invCodigoFecha').value;
+  const pinsRaw = document.getElementById('invCodigoPin').value.trim();
+
+  if (!pinsRaw || isNaN(trm)) { alert("Completa el PIN y la TRM."); return; }
+
+  const pins = pinsRaw.split('\n').map(p => p.trim()).filter(p => p);
+  pins.forEach(pin => {
+    AppState.inventoryCodes.push({
+      id: Date.now() + Math.random(),
+      tipo: `${valor} USD`,
+      valorUsd: valor,
+      trm: trm,
+      costoCop: Math.round(valor * trm),
+      pin: pin,
+      fecha: fecha,
+      estado: 'ON'
+    });
+  });
+
+  logEvent('Inventario Códigos: Nuevo', `Se añadieron ${pins.length} códigos de ${valor} USD`);
+  saveLocal();
+  renderInventoryCodigos();
+  closeModalCodigo();
+  calculateBalances();
+  updateDashboard();
+}
+
+export function renderInventoryCodigos() {
+  const tbody = document.getElementById('invCodigosBody');
+  if (!tbody) return;
+  const codes = (AppState.inventoryCodes || []).filter(c => c.estado === 'ON');
+  tbody.innerHTML = codes.length ? '' : '<tr><td colspan="6" style="text-align:center;">Sin códigos en stock.</td></tr>';
+  codes.forEach((c, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${idx + 1}</td><td>${c.fecha}</td><td>${c.tipo}</td><td><code>${c.pin}</code></td><td>${formatCOP(c.costoCop)}</td><td><button class="btn-danger-premium" onclick="deleteCodigo(${c.id})"><i data-lucide="trash-2"></i></button></td>`;
+    tbody.appendChild(tr);
+  });
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+// --- MÓDULO: XBOX / PHYSICAL ---
+
+export function openModalXbox(id = null) {
+  document.getElementById('modalXboxTitle').textContent = id ? 'Editar Xbox' : 'Ingresar Xbox';
+  document.getElementById('xboxFormId').value = id || '';
+  document.getElementById('modalXboxInventory').classList.add('show');
+  if (!id) document.getElementById('xboxFormFecha').value = new Date().toISOString().split('T')[0];
+}
+
+export function saveXboxInventory() {
+  const id = document.getElementById('xboxFormId').value;
+  const data = {
+    id: id || Date.now(),
+    fecha: document.getElementById('xboxFormFecha').value,
+    detalle: document.getElementById('xboxFormDetalle').value,
+    correo: document.getElementById('xboxFormCorreo').value,
+    password: document.getElementById('xboxFormPassword').value,
+    costoCop: parseFloat(document.getElementById('xboxFormCostoCop').value) || 0,
+    proveedor: document.getElementById('xboxFormProveedor').value,
+    estado: document.getElementById('xboxFormEstado').value
+  };
+
+  if (id) {
+    const idx = AppState.xboxInventory.findIndex(x => x.id == id);
+    if (idx !== -1) AppState.xboxInventory[idx] = data;
+  } else {
+    AppState.xboxInventory.push(data);
+  }
+
+  saveLocal();
+  renderInventoryXbox();
+  document.getElementById('modalXboxInventory').classList.remove('show');
+}
+
+export function renderInventoryXbox() {
+  const tbody = document.getElementById('invXboxBody');
+  if (!tbody) return;
+  tbody.innerHTML = (AppState.xboxInventory || []).map((x, i) => `<tr><td>${i+1}</td><td>${x.detalle}</td><td>${x.correo}</td><td>${formatCOP(x.costoCop)}</td><td>${x.estado}</td></tr>`).join('');
+}
+
+export function openModalPhysical(id = null) {
+  document.getElementById('modalPhysicalInventory').classList.add('show');
+}
+
+export function savePhysicalInventory() {
+  const data = {
+    id: Date.now(),
+    fecha: document.getElementById('physicalFormFecha').value,
+    detalle: document.getElementById('physicalFormDetalle').value,
+    serial: document.getElementById('physicalFormSerial').value,
+    costoCop: parseFloat(document.getElementById('physicalFormCostoCop').value) || 0,
+    estado: document.getElementById('physicalFormEstado').value
+  };
+  AppState.physicalInventory.push(data);
+  saveLocal();
+  renderInventoryPhysical();
+  document.getElementById('modalPhysicalInventory').classList.remove('show');
+}
+
+export function renderInventoryPhysical() {
+  const tbody = document.getElementById('invPhysicalBody');
+  if (!tbody) return;
+  tbody.innerHTML = (AppState.physicalInventory || []).map((p, i) => `<tr><td>${i+1}</td><td>${p.detalle}</td><td>${p.serial}</td><td>${formatCOP(p.costoCop)}</td><td>${p.estado}</td></tr>`).join('');
+}
+
+// --- MÓDULO: PAQUETES / MEMBRESÍAS ---
+
+// --- MÓDULO: PAQUETES ---
+
+export function openModalPaquete(id = null) {
+  const overlay = document.getElementById('modalPaqueteOverlay');
+  const titleEl = document.getElementById('modalPaqueteTitle');
+  if (!overlay) return;
+
+  document.getElementById('editPaqueteId').value = '';
+  document.getElementById('invPaqueteNombre').value = '';
+  document.getElementById('invPaqueteCorreo').value = '';
+  document.getElementById('invPaqueteHosting').value = '';
+  document.getElementById('invPaquetePassHosting').value = '';
+  document.getElementById('invPaquetePass').value = '';
+  document.getElementById('invPaquete2fa').value = '';
+  document.getElementById('invPaqueteFechaCuenta').value = new Date().toISOString().split('T')[0];
+  document.getElementById('invPaqueteFecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('invPaqueteUsd').value = '';
+  document.getElementById('invPaqueteTrm').value = AppState.exchangeRate || 4200;
+  document.getElementById('invPaquetePais').value = 'USA';
+  document.getElementById('invPaqueteJuegos').value = '';
+  titleEl.textContent = 'Ingresar Paquete';
+
+  if (id !== null) {
+    const p = AppState.paquetes.find(x => x.id === id);
+    if (p) {
+      document.getElementById('editPaqueteId').value = p.id;
+      document.getElementById('invPaqueteNombre').value = p.nombre || '';
+      document.getElementById('invPaqueteCorreo').value = p.correo || '';
+      document.getElementById('invPaqueteHosting').value = p.correo_hosting || p.hosting || '';
+      document.getElementById('invPaquetePassHosting').value = p.password_hosting || '';
+      document.getElementById('invPaquetePass').value = p.password || '';
+      document.getElementById('invPaquete2fa').value = p.codigo2fa || '';
+      document.getElementById('invPaqueteFechaCuenta').value = p.fechaCuenta || '';
+      document.getElementById('invPaqueteFecha').value = p.fecha || '';
+      document.getElementById('invPaqueteUsd').value = p.costoUsd || '';
+      document.getElementById('invPaqueteTrm').value = p.trm || '';
+      document.getElementById('invPaquetePais').value = p.pais || 'USA';
+      document.getElementById('invPaqueteJuegos').value = p.juegos || '';
+      titleEl.textContent = 'Editar Paquete';
+    }
+  }
+
+  overlay.classList.add('show');
+}
+
+export function closeModalPaquete() {
+  const overlay = document.getElementById('modalPaqueteOverlay');
+  if (overlay) overlay.classList.remove('show');
+}
+
+export function savePaqueteInventory() {
+  const editId = document.getElementById('editPaqueteId').value;
+  const nombre = document.getElementById('invPaqueteNombre').value.trim();
+  const correo = document.getElementById('invPaqueteCorreo').value.trim();
+  const correoHosting = document.getElementById('invPaqueteHosting').value.trim();
+  const passHosting = document.getElementById('invPaquetePassHosting').value.trim();
+  const password = document.getElementById('invPaquetePass').value.trim();
+  const codigo2fa = document.getElementById('invPaquete2fa').value.trim();
+  const fecha = document.getElementById('invPaqueteFecha').value;
+  const fechaCuenta = document.getElementById('invPaqueteFechaCuenta').value;
+  const costoUsd = parseFloat(document.getElementById('invPaqueteUsd').value) || 0;
+  const trm = parseFloat(document.getElementById('invPaqueteTrm').value) || AppState.exchangeRate;
+  const pais = document.getElementById('invPaquetePais').value;
+  const juegos = document.getElementById('invPaqueteJuegos').value.trim();
+
+  if (!nombre) { alert('El nombre del paquete es obligatorio.'); return; }
+  if (!correo) { alert('El correo de la cuenta es obligatorio.'); return; }
+
+  const costoCop = Math.round(costoUsd * trm);
+  let es_ps4 = true, es_ps5 = true, tipo_version = "Cross-Gen";
+
+  const matchAnalisis = AppState.analysis.find(a => a.nombre.toLowerCase() === nombre.toLowerCase());
+  if (matchAnalisis) {
+    es_ps4 = matchAnalisis.ps4 !== undefined ? matchAnalisis.ps4 : true;
+    es_ps5 = matchAnalisis.ps5 !== undefined ? matchAnalisis.ps5 : true;
+    if (es_ps4 && es_ps5) tipo_version = "Cross-Gen";
+    else if (!es_ps4 && es_ps5) tipo_version = "Exclusivo PS5";
+    else if (es_ps4 && !es_ps5) tipo_version = "Exclusivo PS4";
+  }
+
+  const cupos_ps4_primaria = es_ps4 ? 2 : 0;
+  const cupos_ps4_secundaria = es_ps4 ? 1 : 0;
+  const cupos_ps5_primaria = es_ps5 ? 2 : 0;
+  const cupos_ps5_secundaria = es_ps5 ? 1 : 0;
+
+  if (editId) {
+    const idx = AppState.paquetes.findIndex(p => p.id == editId);
+    if (idx !== -1) {
+      AppState.paquetes[idx] = {
+        ...AppState.paquetes[idx],
+        nombre, correo, correo_hosting: correoHosting, password_hosting: passHosting, password, codigo2fa, fecha, fechaCuenta, costoUsd, trm, costoCop, pais, juegos,
+        es_ps4, es_ps5, tipo_version, cupos_ps4_primaria, cupos_ps4_secundaria, cupos_ps5_primaria, cupos_ps5_secundaria
+      };
+      logEvent('Inventario Paquetes: Edición', `ID: ${editId} | Paquete: ${nombre}`);
+    }
+  } else {
+    const newId = Date.now();
+    AppState.paquetes.push({
+      id: newId, nombre, correo, correo_hosting: correoHosting, password_hosting: passHosting, password, codigo2fa, fecha, fechaCuenta, costoUsd, trm, costoCop, pais, juegos, estado: 'OFF',
+      es_ps4, es_ps5, tipo_version, cupos_ps4_primaria, cupos_ps4_secundaria, cupos_ps5_primaria, cupos_ps5_secundaria
+    });
+    logEvent('Inventario Paquetes: Nuevo', `ID: ${newId} | Paquete: ${nombre}`);
+  }
+
+  closeModalPaquete();
+  renderInventoryPaquetes();
+  calculateBalances();
+  saveLocal();
+}
+
+export function renderInventoryPaquetes() {
+  const user = AppState.currentUser;
+  if (!user) return;
+  const tbody = document.getElementById('inventoryPaquetesBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  const paquetes = AppState.paquetes || [];
+  const searchVal = (document.getElementById('searchPaquetes')?.value || '').toLowerCase();
+
+  const filtered = paquetes.filter(p =>
+    (p.nombre || '').toLowerCase().includes(searchVal) ||
+    (p.correo || '').toLowerCase().includes(searchVal)
+  );
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="16" style="text-align:center; color: var(--text-muted); padding: 30px;">No hay paquetes registrados.</td></tr>`;
+    return;
+  }
+
+  filtered.forEach((p, idx) => {
+    const isON = p.estado === 'ON';
+    const { config, used } = getPaqueteSlots(p.id);
+    const tr = document.createElement('tr');
+    tr.className = isON ? 'row-active' : 'row-used';
+    tr.innerHTML = `
+      <td class="row-number">${idx+1}</td>
+      <td style="color: var(--accent-cyan); font-weight:700;">#${p.id}</td>
+      <td>${p.fecha || '-'}</td>
+      <td class="fw-bold">${p.nombre}</td>
+      <td>${p.correo}</td>
+      <td style="text-align:center;"><div class="password-field-premium" onclick="togglePasswordVisibility(this)"><span>${p.password || '-'}</span></div></td>
+      <td style="text-align:center;"><div class="password-field-premium" onclick="togglePasswordVisibility(this)"><span>${p.codigo2fa || '-'}</span></div></td>
+      <td class="text-success">${formatUSD(p.costoUsd)}</td>
+      <td class="text-warning">${formatCOP(p.costoCop)}</td>
+      <td style="text-align:center;"><label class="premium-switch"><input type="checkbox" ${isON ? 'checked' : ''} onchange="togglePaqueteStatus('${p.id}')"><span class="switch-slider"></span></label></td>
+      <td><button class="action-btn-premium edit-btn" onclick="openModalPaquete('${p.id}')"><i data-lucide="edit-3"></i></button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+export function deletePaquete(id) {
+  showDeleteConfirmModal('¿Eliminar este paquete?', () => {
+    const pToDelete = AppState.paquetes.find(p => p.id === id);
+    if (pToDelete) logEvent('Inventario Paquetes: Eliminado', `Se eliminó el paquete: ${pToDelete.nombre}`);
+    AppState.paquetes = AppState.paquetes.filter(p => p.id !== id);
+    renderInventoryPaquetes();
+    calculateBalances();
+    saveLocal();
+  });
+}
+
+export function togglePaqueteStatus(id) {
+  const paquete = AppState.paquetes.find(p => p.id === id);
+  if (paquete) {
+    paquete.estado = paquete.estado === 'ON' ? 'OFF' : 'ON';
+    logEvent('Inventario Paquetes: Estado', `ID: ${id} | Paquete: ${paquete.nombre} -> ${paquete.estado}`);
+    saveLocal();
+    renderInventoryPaquetes();
+    calculateBalances();
+  }
+}
+
+export function filterInventoryPaquetes() {
+  renderInventoryPaquetes();
+}
+
+// --- MÓDULO: MEMBRESÍAS ---
+
+export function openModalMembresia(id = null) {
+  const overlay = document.getElementById('modalMembresiaOverlay');
+  const titleEl = document.getElementById('modalMembresiaTitle');
+  if (!overlay) return;
+
+  document.getElementById('editMembresiaId').value = '';
+  document.getElementById('invMembresiaTipo').value = '1 mes Essential';
+  document.getElementById('invMembresiaCorreo').value = '';
+  document.getElementById('invMembresiaHosting').value = '';
+  document.getElementById('invMembresiaPassHosting').value = '';
+  document.getElementById('invMembresiaPass').value = '';
+  document.getElementById('invMembresia2fa').value = '';
+  document.getElementById('invMembresiaFechaCuenta').value = new Date().toISOString().split('T')[0];
+  document.getElementById('invMembresiaFecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('invMembresiaUsd').value = '';
+  document.getElementById('invMembresiaTrm').value = AppState.exchangeRate || 4200;
+  document.getElementById('invMembresiaPais').value = 'USA';
+  titleEl.textContent = 'Ingresar Membresía PS+';
+
+  if (id !== null) {
+    const m = AppState.membresias.find(x => x.id === id);
+    if (m) {
+      document.getElementById('editMembresiaId').value = m.id;
+      document.getElementById('invMembresiaTipo').value = m.tipo || '1 mes Essential';
+      document.getElementById('invMembresiaCorreo').value = m.correo || '';
+      document.getElementById('invMembresiaHosting').value = m.correo_hosting || m.hosting || '';
+      document.getElementById('invMembresiaPassHosting').value = m.password_hosting || '';
+      document.getElementById('invMembresiaPass').value = m.password || '';
+      document.getElementById('invMembresia2fa').value = m.codigo2fa || '';
+      document.getElementById('invMembresiaFechaCuenta').value = m.fechaCuenta || '';
+      document.getElementById('invMembresiaFecha').value = m.fecha || '';
+      document.getElementById('invMembresiaUsd').value = m.costoUsd || '';
+      document.getElementById('invMembresiaTrm').value = m.trm || '';
+      document.getElementById('invMembresiaPais').value = m.pais || 'USA';
+      titleEl.textContent = 'Editar Membresía PS+';
+    }
+  }
+
+  overlay.classList.add('show');
+}
+
+export function closeModalMembresia() {
+  const overlay = document.getElementById('modalMembresiaOverlay');
+  if (overlay) overlay.classList.remove('show');
+}
+
+export function saveMembresiaInventory() {
+  const editId = document.getElementById('editMembresiaId').value;
+  const tipo = document.getElementById('invMembresiaTipo').value;
+  const correo = document.getElementById('invMembresiaCorreo').value.trim();
+  const correoHosting = document.getElementById('invMembresiaHosting').value.trim();
+  const passHosting = document.getElementById('invMembresiaPassHosting').value.trim();
+  const password = document.getElementById('invMembresiaPass').value.trim();
+  const codigo2fa = document.getElementById('invMembresia2fa').value.trim();
+  const fecha = document.getElementById('invMembresiaFecha').value;
+  const fechaCuenta = document.getElementById('invMembresiaFechaCuenta').value;
+  const costoUsd = parseFloat(document.getElementById('invMembresiaUsd').value) || 0;
+  const trm = parseFloat(document.getElementById('invMembresiaTrm').value) || AppState.exchangeRate;
+  const pais = document.getElementById('invMembresiaPais').value;
+
+  if (!correo) { alert('El correo de la cuenta es obligatorio.'); return; }
+
+  const costoCop = Math.round(costoUsd * trm);
+  const es_ps4 = true, es_ps5 = true, tipo_version = "Cross-Gen";
+  const cupos_ps4_primaria = 2, cupos_ps4_secundaria = 1, cupos_ps5_primaria = 2, cupos_ps5_secundaria = 1;
+
+  if (editId) {
+    const idx = AppState.membresias.findIndex(m => m.id == editId);
+    if (idx !== -1) {
+      AppState.membresias[idx] = {
+        ...AppState.membresias[idx],
+        tipo, correo, correo_hosting: correoHosting, password_hosting: passHosting, password, codigo2fa, fecha, fechaCuenta, costoUsd, trm, costoCop, pais,
+        es_ps4, es_ps5, tipo_version, cupos_ps4_primaria, cupos_ps4_secundaria, cupos_ps5_primaria, cupos_ps5_secundaria
+      };
+      logEvent('Inventario Membresías: Edición', `ID: ${editId} | Tipo: ${tipo}`);
+    }
+  } else {
+    const newId = Date.now();
+    AppState.membresias.push({
+      id: newId, tipo, correo, correo_hosting: correoHosting, password_hosting: passHosting, password, codigo2fa, fecha, fechaCuenta, costoUsd, trm, costoCop, pais, estado: 'OFF',
+      es_ps4, es_ps5, tipo_version, cupos_ps4_primaria, cupos_ps4_secundaria, cupos_ps5_primaria, cupos_ps5_secundaria
+    });
+    logEvent('Inventario Membresías: Nueva', `ID: ${newId} | Tipo: ${tipo}`);
+  }
+
+  closeModalMembresia();
+  renderInventoryMembresias();
+  calculateBalances();
+  saveLocal();
+}
+
+export function renderInventoryMembresias() {
+  const tbody = document.getElementById('inventoryMembresiasBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  const membresias = AppState.membresias || [];
+  const searchVal = (document.getElementById('searchMembresias')?.value || '').toLowerCase();
+
+  const filtered = membresias.filter(m =>
+    (m.tipo || '').toLowerCase().includes(searchVal) ||
+    (m.correo || '').toLowerCase().includes(searchVal)
+  );
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="15" style="text-align:center;">No hay membresías registradas.</td></tr>`;
+    return;
+  }
+
+  filtered.forEach((m, idx) => {
+    const isON = m.estado === 'ON';
+    const tr = document.createElement('tr');
+    tr.className = isON ? 'row-active' : 'row-used';
+    tr.innerHTML = `
+      <td class="row-number">${idx+1}</td>
+      <td style="color: var(--accent-cyan); font-weight: 700;">#${m.id}</td>
+      <td>${m.fecha || '-'}</td>
+      <td class="fw-bold"><span style="background:rgba(0,102,255,0.1); padding:2px 8px; border-radius:4px;">${m.tipo}</span> <span style="font-size:0.6rem; border:1px solid; padding:2px 4px; border-radius:4px;">${m.pais || 'USA'}</span></td>
+      <td>${m.correo}</td>
+      <td style="text-align:center;"><div class="password-field-premium" onclick="togglePasswordVisibility(this)"><span>${m.password || '-'}</span></div></td>
+      <td style="text-align:center;"><div class="password-field-premium" onclick="togglePasswordVisibility(this)"><span>${m.codigo2fa || '-'}</span></div></td>
+      <td class="text-success">${formatUSD(m.costoUsd)}</td>
+      <td class="text-warning">${formatCOP(m.costoCop)}</td>
+      <td style="text-align:center;"><label class="premium-switch"><input type="checkbox" ${isON ? 'checked' : ''} onchange="toggleMembresiaStatus(${m.id})"><span class="switch-slider"></span></label></td>
+      <td><button class="action-btn-premium edit-btn" onclick="openModalMembresia(${m.id})"><i data-lucide="edit-3"></i></button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+export function deleteMembresia(id) {
+  showDeleteConfirmModal('¿Eliminar esta membresía?', () => {
+    const mToDelete = AppState.membresias.find(m => m.id === id);
+    if (mToDelete) logEvent('Inventario Membresías: Eliminada', `Se eliminó la membresía: ${mToDelete.tipo}`);
+    AppState.membresias = AppState.membresias.filter(m => m.id !== id);
+    renderInventoryMembresias();
+    calculateBalances();
+    saveLocal();
+  });
+}
+
+export function toggleMembresiaStatus(id) {
+  const m = AppState.membresias.find(x => x.id === id);
+  if (m) {
+    m.estado = m.estado === 'ON' ? 'OFF' : 'ON';
+    logEvent('Inventario Membresías: Estado', `ID: ${id} | Tipo: ${m.tipo} -> ${m.estado}`);
+    renderInventoryMembresias();
+    calculateBalances();
+    saveLocal();
+  }
+}
+
+export function filterInventoryMembresias() {
+  renderInventoryMembresias();
+}
+
+export function filterInventoryCodes() {
+  renderInventoryCodigos();
+}
+
+export function filterInventoryXbox() {
+  renderInventoryXbox();
+}
+
+export function filterInventoryPhysical() {
+  renderInventoryPhysical();
+}
+
+// --- HELPERS DINÁMICOS ---
+
+export function selectStatusFilter(event, val, text) {
+  if (event && event.stopPropagation) event.stopPropagation();
+  const input = document.getElementById('filterStatus');
+  if (input) input.value = val;
+  const label = document.getElementById('statusSelectedText');
+  if (label) label.textContent = text;
+  renderInventoryJuegos();
+}
