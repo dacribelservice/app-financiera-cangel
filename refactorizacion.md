@@ -17,10 +17,10 @@
 - [ ] Fase 2.2: Crear `utils/validators.js`. (Próximamente).
 
 ### 🔵 FASE 3: ESTADO GLOBAL
-- [ ] Fase 3.1: Crear `core/store.js` y extraer el objeto `AppState`. Importarlo en `app.js`.
+- [x] Fase 3.1: Crear `core/store.js` y extraer el objeto `AppState`. Importarlo en `app.js`.
 
 ### 🟠 FASE 4: CAPA DE RED Y SERVICIOS
-- [ ] Fase 4.1: Crear `services/api.js`. Mover la lógica de sincronización con Supabase y Node.js.
+- [x] Fase 4.1: Crear `services/api.js`. Mover la lógica de sincronización con Supabase y Node.js.
 
 ### 🔴 FASE 5: UI Y LÓGICA DE NEGOCIO
 - [ ] Fase 5.1: Crear módulos en `/ui` para aislar la lógica de Ventas, Inventario y Clientes.
@@ -115,28 +115,36 @@
 - **Módulos:** El sistema ya utiliza importaciones ES6 para utilidades.
 - **Estabilidad:** 37/37 tests siguen pasando tras la fragmentación.
 
-**Próximo Paso Inmediato (Fase 2.2):**
-1. Identificar funciones de validación (ej. `checkDuplicateGameEmail`, etc.).
-2. Extraer a `utils/validators.js`.
-3. Validar con suite de pruebas.
+### 📋 CHET LIST: FASE 2.2 - EXTRACCIÓN Y NUEVOS VALIDADORES
+#### **Fase 2.2a: Desacoplamiento de Validadores Existentes (COMPLETADA ✅)**
+1. **Preparación de Infraestructura:**
+   - [x] Crear el archivo `utils/validators.js`.
+2. **Identificación y Desacoplamiento (app.js):**
+   - [x] `checkDuplicateGameEmail` (Línea 4192) -> Extraer lógica a `isValidDuplicateEmail`.
+   - [x] `checkDisp` (Línea 5427) -> Extraer lógica a `hasInventoryAvailability`.
+   - [x] `checkLowInventory` (Línea 5111) -> Extraer lógica a `isInventoryLow`.
+4. **Integración y Limpieza:**
+   - [x] Exportar funciones desde `validators.js`.
+   - [x] Importar en `app.js` e integrar en flujos de `saveGame`, `doLogin`, etc. (via Wrappers de UI).
+   - [x] Eliminar lógica inline redundante.
+5. **Prueba de Regresión:**
+   - [x] Ejecutar `npm run test` (37/37 OK).
+
+#### **Fase 2.2b: Implementación de Nuevos Validadores RegEx (COMPLETADA ✅)**
+1. **Desarrollo de Funciones Puras:**
+   - [x] `isValidEmail` -> Implementar RegEx estándar.
+   - [x] `isValidPhoneCO` -> Implementar validación de celular CO (10 dígitos, inicia con 3).
+   - [x] `isValidCedula` -> Implementar validación numérica de IDs (solo números).
+2. **Exportación e Importación:**
+   - [x] Exportar desde `validators.js` e importar en `app.js`.
+3. **Unit Testing:**
+   - [x] Crear `__tests__/validators.test.js`.
+   - [x] Verificar casos de éxito y fallo.
+4. **Cierre de Fase:**
+   - [x] Ejecutar `npm run test` (49/49 OK).
+   - [x] Declarar Fase 2 (Validators) COMPLETADA ✅.
 
 ---
 
 **Chet List de Fase 2.1 (Completada):**
-1. **Preparación de Infraestructura:**
-   - [x] Crear la carpeta `utils`.
-   - [x] Crear el archivo `utils/formatters.js`.
-2. **Identificación y Extracción (CORTAR de `app.js`):**
-   - [x] `formatCOP` (Línea 40).
-   - [x] `formatUSD` (Línea 48).
-   - [x] `getColombiaTime` (Línea 3366).
-   - [x] `calculateMembershipCountdown` (Línea 1809).
-   - [x] `formatDaysToMonths` (Línea 1834).
-3. **Integración y Limpieza:**
-   - [x] Exportar funciones desde `formatters.js`.
-   - [x] Importar en `app.js` con extensión `.js`.
-   - [x] Eliminar definiciones redundantes en `app.js`.
-4. **Prueba de Regresión:**
-   - [x] Ejecutar `npm run test` (37/37 OK).
-5. **Documentación:**
-   - [x] Registrar éxito en bitácora.
+... (mantener historial) ...

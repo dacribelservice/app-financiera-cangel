@@ -3,39 +3,24 @@
    7 Módulos · Roles · Ecommerce · IA & Hosting
    ================================================ */
 import { formatCOP, formatUSD, getColombiaTime, calculateMembershipCountdown, formatDaysToMonths } from './utils/formatters.js';
+import { 
+  isValidDuplicateEmail as val_isValidDuplicateEmail, 
+  hasInventoryAvailability as val_hasInventoryAvailability, 
+  isInventoryLow as val_isInventoryLow,
+  isValidEmail,
+  isValidPhoneCO,
+  isValidCedula
+} from './utils/validators.js';
 
 // ──── Estado Global ────
 const USE_LOCAL_STORAGE_BACKUP = false; // Feature Flag: Cambiar a true si hay fallos en Supabase
-
-export const AppState = {
-  currentUser: null,
-  activeTab: 'catalogo',
-  activeFilter: 'semana',
-  exchangeRate: 4200,
-
-  users: [],       // Lista de usuarios (para login y permisos)
-  auditLog: [],    // Bitácora de acontecimientos
-
-  catalog: [],
-  analysis: [],
-  inventory: [],
-  inventoryGames: [],
-  inventoryCodes: [],
-  sales: [],
-  expenses: [],
-  raffles: [],
-  clients: [],
-  paquetes: [],
-  membresias: [],
-  xboxInventory: [],
-  physicalInventory: [],
-
-  cart: [],
-  charts: {},
-  idealStock: {}, // Guardar stock ideal por título
-  plantillas: {},
-  ventasMode: 'facturacion',
-};
+import { AppState } from './core/store.js';
+export { AppState };
+import { 
+  storageSave, storageLoad, 
+  apiSync, apiProcessSyncQueue, 
+  apiFetchInitialData, apiFetchClientes, apiFetchPSDetails 
+} from './services/api.js';
 
 
 /* ═══════════════════════════════════════ */
@@ -360,8 +345,7 @@ async function handleExtractAI() {
   status.innerHTML = `<span class="status-loading"></span> Extrayendo con IA (Gemini)...`;
 
   try {
-    const response = await fetch(`/api/ps-details-ai?url=${encodeURIComponent(url)}`);
-    const data = await response.json();
+    const data = await apiFetchPSDetails(url);
 
     console.log('[IA-Extract] Raw Data:', data);
 
@@ -3310,32 +3294,10 @@ async function prepararEdicionIngreso(id) {
 
 
 function saveLocal() {
-  // 1. Persistencia síncrona en localStorage (Garantiza velocidad y respaldo local)
-  localStorage.setItem('cangel_erp_v7', JSON.stringify({
-    users: AppState.users,
-    auditLog: AppState.auditLog,
-    catalog: AppState.catalog,
-    sales: AppState.sales,
-    inventory: AppState.inventory,
-    inventoryGames: AppState.inventoryGames,
-    inventoryCodes: AppState.inventoryCodes,
-    paquetes: AppState.paquetes,
-    membresias: AppState.membresias,
-    expenses: AppState.expenses,
-    incomeExtra: AppState.incomeExtra,
-    analysis: AppState.analysis,
-    idealStock: AppState.idealStock,
-    clientsListas: AppState.clientsListas,
-    listas: AppState.listas,
-    xboxInventory: AppState.xboxInventory,
-    physicalInventory: AppState.physicalInventory,
-    plantillas: AppState.plantillas
-  }));
+  // 1. Persistencia síncrona en localStorage via Service
+  storageSave(AppState);
 
-  // 2. Sincronización asíncrona con Supabase (Shadow Writing)
-  // Se ejecuta en segundo plano sin bloquear la UI
-  
-  // Extraer clientes únicos de las ventas para sincronizar metadatos
+  // 2. Sincronización asíncrona con Supabase (Shadow Writing) via Service
   const uniqueClients = {};
   if (Array.isArray(AppState.sales)) {
     AppState.sales.forEach(v => {
@@ -3360,29 +3322,8 @@ function saveLocal() {
     plantillas: AppState.plantillas || {}
   };
 
-  (async () => {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // Timeout estricto de 5s
-
-      const response = await fetch('/api/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(syncData),
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) throw new Error('Server error');
-    } catch (err) {
-      if (USE_LOCAL_STORAGE_BACKUP) {
-        // Error silencioso: Guardar en cola de reintentos solo si el backup está activo
-        console.warn("⚠️ Sync fallido. Guardando en cola local:", err.name === 'AbortError' ? 'Timeout 5s' : err.message);
-        localStorage.setItem('cangel_sync_queue', JSON.stringify(syncData));
-      }
-    }
-  })();
+  // Disparar sincronización sin bloquear
+  apiSync(syncData, USE_LOCAL_STORAGE_BACKUP);
 
   update2FABellBadge();
 }
@@ -3392,30 +3333,7 @@ function saveLocal() {
  * Reintenta enviar datos pendientes si hubo fallos previos.
  */
 async function processSyncQueue() {
-  const queue = localStorage.getItem('cangel_sync_queue');
-  if (!queue) return;
-
-  try {
-    const syncData = JSON.parse(queue);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // Timeout más largo para reintentos
-
-    const response = await fetch('/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(syncData),
-      signal: controller.signal
-    });
-
-    clearTimeout(timeoutId);
-
-    if (response.ok) {
-      console.log("✅ Cola de sincronización procesada con éxito.");
-      localStorage.removeItem('cangel_sync_queue');
-    }
-  } catch (err) {
-    console.warn("⏳ Reintento de sincronización fallido (servidor aún offline).");
-  }
+  await apiProcessSyncQueue();
 }
 
 // NOTA: Esta funcionalidad de limpieza es TEMPORAL para fase de desarrollo/pruebas.
@@ -3450,9 +3368,8 @@ function confirmarLimpiezaDatos() {
 }
 
 function loadLocal() {
-  const saved = localStorage.getItem('cangel_erp_v7');
-  if (saved) {
-    const data = JSON.parse(saved);
+  const data = storageLoad();
+  if (data) {
     AppState.users = data.users || [];
     // Migración: Asegurar que todos usen .pass en vez de .password
     AppState.users.forEach(u => {
@@ -3471,7 +3388,6 @@ function loadLocal() {
     AppState.catalog = data.catalog || [];
     // Fase 4.2: Freno a la carga masiva
     // Solo cargamos las últimas 1000 ventas para mantener agilidad en memoria
-    // Los datos históricos completos residen en Supabase
     AppState.sales = (data.sales || []).slice(-1000);
 
     // Add _searchIndex to loaded sales
@@ -3481,8 +3397,8 @@ function loadLocal() {
       }
     });
 
-    AppState.inventoryGames = data.inventoryGames || []; // New separate array
-    AppState.inventoryCodes = data.inventoryCodes || []; // New separate array
+    AppState.inventoryGames = data.inventoryGames || [];
+    AppState.inventoryCodes = data.inventoryCodes || [];
     AppState.paquetes = data.paquetes || [];
     AppState.membresias = data.membresias || [];
     AppState.expenses = data.expenses || [];
@@ -3553,15 +3469,7 @@ function loadLocal() {
  */
 async function refreshDataFromSupabase() {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // Timeout 5s
-
-    const response = await fetch('/api/initial-data', { signal: controller.signal });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) return;
-
-    const { inventoryGames, settings } = await response.json();
+    const { inventoryGames, settings, totalClients } = await apiFetchInitialData();
 
     // Actualizar AppState silenciosamente con los datos más recientes
     if (inventoryGames && inventoryGames.length > 0) {
@@ -3574,16 +3482,10 @@ async function refreshDataFromSupabase() {
     }
 
     // Auditoría Silenciosa (Fase 5.1)
-    const clientsResp = await fetch('/api/clientes?limit=1');
-    const clientsData = await clientsResp.json();
-    const supabaseCount = clientsData.total || 0;
-    const localCount = Object.keys(AppState.clientsListas || {}).length;
-    
     if (localStorage.getItem('debug_migration') === 'true') {
-       console.log(`%c[AUDIT] Local: ${localCount} | Supabase: ${supabaseCount}`, "color: #39d6f9; font-weight: bold;");
+       const localCount = Object.keys(AppState.clientsListas || {}).length;
+       console.log(`%c[AUDIT] Local: ${localCount} | Supabase (Clients): ${totalClients || 0}`, "color: #39d6f9; font-weight: bold;");
     }
-
-    // console.log("✅ Datos frescos cargados desde Supabase (Fase 4.1)"); // Log limpiado para producción
     
     // Refrescar UI si el usuario ya está dentro
     if (AppState.currentUser) {
@@ -3623,7 +3525,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initial inventory render and alerts
   renderInventoryJuegos();
   renderInventoryCodigos();
-  checkLowInventory();
+  isInventoryLow();
   calculateBalances();
   updateDashboard();
 });
@@ -3682,7 +3584,7 @@ function renderInventory() {
   renderInventoryCodigos();
   renderInventoryXbox();
   renderInventoryPhysical();
-  checkLowInventory();
+  isInventoryLow();
   calculateBalances();
 }
 
@@ -4189,27 +4091,25 @@ function closeModalJuego() {
   document.getElementById('invJuegoTrm').value = '';
 }
 
-function checkDuplicateGameEmail(input) {
+function isValidDuplicateEmail(input) {
   const currentEmail = input.value.trim().toLowerCase();
   const editId = document.getElementById('editGameId').value;
   const errorDiv = document.getElementById('duplicateInvEmailError');
 
   if (!currentEmail) {
-    errorDiv.style.display = 'none';
+    if (errorDiv) errorDiv.style.display = 'none';
     input.style.borderColor = 'rgba(255,255,255,0.1)';
     return false;
   }
 
-  const isDuplicate = AppState.inventoryGames.some(game =>
-    game.correo.toLowerCase() === currentEmail && game.id != editId
-  );
+  const isDuplicate = val_isValidDuplicateEmail(currentEmail, AppState.inventoryGames, editId);
 
   if (isDuplicate) {
-    errorDiv.style.display = 'block';
+    if (errorDiv) errorDiv.style.display = 'block';
     input.style.borderColor = '#f43f5e';
     return true;
   } else {
-    errorDiv.style.display = 'none';
+    if (errorDiv) errorDiv.style.display = 'none';
     input.style.borderColor = 'rgba(255,255,255,0.1)';
     return false;
   }
@@ -4235,7 +4135,7 @@ function saveGameInventory() {
   }
 
   // Double check duplicates
-  if (checkDuplicateGameEmail(document.getElementById('invJuegoCorreo'))) {
+  if (isValidDuplicateEmail(document.getElementById('invJuegoCorreo'))) {
     alert("Error: Este correo ya existe en el inventario. Por favor usa un correo diferente.");
     return;
   }
@@ -4324,7 +4224,7 @@ function saveGameInventory() {
   renderInventoryJuegos();
   renderAnalysisTable(); // Sincronizar columna F inmediatamente
   closeModalJuego();
-  checkLowInventory();
+  isInventoryLow();
   calculateBalances();
   updateDashboard();
 }
@@ -4340,7 +4240,7 @@ function toggleGameStatus(id) {
 
     saveLocal();
     renderInventoryJuegos();
-    checkLowInventory();
+    isInventoryLow();
     calculateBalances();
   }
 }
@@ -4355,7 +4255,7 @@ function deleteGameInventory(id) {
     AppState.inventoryGames = AppState.inventoryGames.filter(g => g.id !== id);
     saveLocal();
     renderInventoryJuegos();
-    checkLowInventory();
+    isInventoryLow();
     calculateBalances();
     if (typeof showToast === 'function') showToast("Juego eliminado del inventario", "info");
   });
@@ -5108,43 +5008,21 @@ function renderInventoryCodigos() {
 
 /* --- ALERTS MODULE --- */
 
-function checkLowInventory() {
-  const games = AppState.inventoryGames || [];
+function isInventoryLow() {
   const badge = document.getElementById('notifBadge');
   const bell = document.getElementById('notifBell');
   if (!badge) return;
 
-  // Calculate active stock per game title
-  const stockCounts = {};
-  games.forEach(g => {
-    if (!stockCounts[g.juego]) {
-      stockCounts[g.juego] = { count: 0, ideal: g.stockIdeal || 10 };
-    }
-    if (g.estado === 'Activo') {
-      stockCounts[g.juego].count++;
-    }
-  });
+  const result = val_isInventoryLow(AppState.inventoryGames);
 
-  let notificationsCount = 0;
-  for (const [title, data] of Object.entries(stockCounts)) {
-    if (data.count <= data.ideal) { // Changed to <= as per common practice, or < per user? User said "cuando hallan 3 me avise" (if meta stock is 10, when it reaches 3).
-      // Actually user said: "si compre 10 fc 26 y en el campo de "estado" de la tabla, coloco como regla que cuando hallan 3 me avise"
-      // So if count <= 3. I'll use data.ideal as the threshold.
-      if (data.count <= 3) { // Hardcoded 3 as per example, or use the 'ideal' field? 
-        // User said: "coloco como regla que cuando hallan 3 me avise". 
-        // I'll assume 3 is the threshold he wants for alerts.
-        notificationsCount++;
-      }
-    }
-  }
-
-  if (notificationsCount > 0) {
-    badge.innerText = notificationsCount;
+  if (result.count > 0) {
+    badge.innerText = result.count;
     badge.classList.remove('hidden');
     if (bell) bell.style.color = '#ff4757';
   } else {
+    badge.innerText = '';
     badge.classList.add('hidden');
-    if (bell) bell.style.color = 'rgba(255,255,255,0.6)';
+    if (bell) bell.style.color = 'var(--text-muted)';
   }
 }
 
@@ -5424,8 +5302,8 @@ function selectVentaGameSuggestion(rowId, id, title) {
 // AUTOCOMPLETE PARA PAQUETES, MEMBRESIAS Y CODIGOS
 // ==========================================
 
-function checkDisp(item, field) {
-  return item[field] === 'Disponible';
+function hasInventoryAvailability(item, field) {
+  return val_hasInventoryAvailability(item, field);
 }
 
 function renderCuentasDisponiblesHtml(item) {
@@ -6876,31 +6754,19 @@ async function fetchClientesPage(page = 0) {
   if (loading) loading.style.display = 'inline-flex';
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s Timeout
-
-    const response = await fetch(`/api/clientes?page=${page}&limit=${_clientsLimit}`, {
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
-
-    if (!response.ok) throw new Error('Error al cargar clientes');
-
-    const result = await response.json();
+    const result = await apiFetchClientes(page, _clientsLimit);
     
     // Actualizar estado de paginación
     _clientsCurrentPage = result.page;
     _clientsTotalPages = Math.ceil(result.total / result.limit);
     
     // Mapear datos de Supabase al formato esperado por la tabla
-    // Nota: Por ahora CC, Consola y Fidelidad se muestran básicos ya que están en tablas relacionales
     const mappedClients = result.clientes.map(c => ({
       nombre: c.nombre,
       cc: c.cedula || '--',
       ciudad: c.ciudad || '--',
       celular: c.celular || '--',
-      totalComprasCOP: 0, // Se poblará con datos reales en fases posteriores
+      totalComprasCOP: 0,
       cantidadJuegos: 0,
       conteoPS4: 0,
       conteoPS5: 0
@@ -8115,7 +7981,7 @@ const GlobalBridge = {
   downloadAuditExcel,
   processPDF,
   handleGameAutocomplete,
-  checkDuplicateGameEmail,
+  isValidDuplicateEmail,
   
   // UI Helpers (Modales Globales)
   showPremiumAlert,
