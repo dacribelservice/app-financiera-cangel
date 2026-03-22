@@ -453,6 +453,10 @@ export function openModalXbox(id = null) {
   if (!id) document.getElementById('xboxFormFecha').value = new Date().toISOString().split('T')[0];
 }
 
+export function closeXboxModal() {
+  document.getElementById('modalXboxInventory').classList.remove('show');
+}
+
 export function saveXboxInventory() {
   const id = document.getElementById('xboxFormId').value;
   const data = {
@@ -511,6 +515,10 @@ export function renderInventoryXbox() {
 
 export function openModalPhysical(id = null) {
   document.getElementById('modalPhysicalInventory').classList.add('show');
+}
+
+export function closePhysicalModal() {
+  document.getElementById('modalPhysicalInventory').classList.remove('show');
 }
 
 export function savePhysicalInventory() {

@@ -108,6 +108,7 @@
 | #10 | Botones Huérfanos en Balance | Funciones de añadir gastos e ingresos no expuestas. | Inyectadas `addExpense`, `addIngreso`, etc. en `GlobalBridge`. | ✅ Fixed |
 | #11 | Navegación Huérfana en Bitácora | `switchBitacoraTab` y `renderBitacoraEventos` no vinculadas. | Añadidas al puente global y verificadas con tests. | ✅ Fixed |
 | #12 | Extracción de Utilidades | Primera fragmentación de `app.js` exitosa. | Movidos 5 formateadores a `utils/formatters.js`. | ✅ Fixed |
+| #13 | Modales de Xbox/Físico rotos | Funciones de cierre y eliminación no estaban en el Bridge. | Creadas `closeXboxModal`, etc. y vinculadas al GlobalBridge. | ✅ Fixed |
 
 ## 🛑 PUNTO DE CONTROL (CHECKPOINT ACTUAL)
 
@@ -168,9 +169,9 @@
 - [x] **Estabilidad:** Tests 52/52 pasando exitosamente.
 - [x] **Saneamiento:** Limpieza de codificación UTF-8 y bordes decorativos.
 
-#### **Fase 5.1c: Crear ui/clients.js (PRÓXIMO PASO 🔵)**
-- [ ] Extraer lógica de Clientes y CRM.
-- [ ] Implementar gestión modular de base de datos de clientes.
+#### **Fase 5.1c: Crear ui/clients.js (EN PROGRESO 🟡)**
+- [x] **Parte 1: Extracción de render de clientes:** Se movieron `fetchClientesPage`, `renderClientsHistoryTable`, `renderListas` y filtrado a `ui/clients.js`. Se eliminaron duplicados en `app.js`.
+- [ ] **Parte 2: Gestión y CRUD:** Extraer `eliminarListaNombrada`, modales de cliente y lógica de edición.
 
 ---
 
