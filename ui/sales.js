@@ -12,7 +12,7 @@ import {
   showDeleteConfirmModal, showToast, showPremiumAlert, showPremiumPrompt
 } from './modals.js';
 
-// --- GESTIÃ“N DE VENTAS ---
+// --- GESTIÓN DE VENTAS ---
 
 export function updateVentasMetrics() {
     const user = AppState.currentUser;
@@ -319,7 +319,7 @@ export function renderVentas() {
             <i data-lucide="gamepad-2" class="minimalist-icon" style="width:12px; height:12px;"></i> ${juegoNombre}
           </div>
           <div style="font-size:0.68rem; color:#a78bfa; margin-top:1px;">
-            ${v.tipo_cuenta || ''} &nbsp;Â·&nbsp; <span style="color:#4ade80;">$${v.totalVenta.toLocaleString('es-CO')}</span>
+            ${v.tipo_cuenta || ''} &nbsp;·&nbsp; <span style="color:#4ade80;">$${v.totalVenta.toLocaleString('es-CO')}</span>
           </div>
           ${correoInfo && correoInfo !== 'No disponible' ? `<div style="font-size:0.65rem; color:#67e8f9; margin-top:1px;">${correoInfo} | ${passInfo}</div>` : ''}
         `;
@@ -442,7 +442,7 @@ export function renderVentas() {
     trMore.innerHTML = `
         <td colspan="15" style="text-align:center; padding: 20px;">
            <span style="color: var(--text-muted); font-size: 0.85rem; margin-bottom:10px; display:block;"> Mostrando ${MAX_RENDER_LIMIT} de ${grupos.length} resultados. </span>
-           <button class="btn-primary" style="background: var(--accent-cyan); color: #000;" onclick="window.RenderVentasLimit = (window.RenderVentasLimit || 100) + 100; renderVentas();"> Cargar 100 mÃ¡s </button>
+           <button class="btn-primary" style="background: var(--accent-cyan); color: #000;" onclick="window.RenderVentasLimit = (window.RenderVentasLimit || 100) + 100; renderVentas();"> Cargar 100 más </button>
         </td>`;
     tbody.appendChild(trMore);
   } else {
@@ -458,7 +458,7 @@ export function eliminarPedidoCompleto(transactionId) {
   const ventas = AppState.sales.filter(v => String(v.transaction_id) === String(transactionId));
   if (ventas.length === 0) return;
 
-  showDeleteConfirmModal(`Â¿Eliminar el pedido completo? (${ventas.length} juego${ventas.length > 1 ? 's' : ''})\nEsto eliminarÃ¡ todas las ventas del pedido #${transactionId}.`, () => {
+  showDeleteConfirmModal(`¿Eliminar el pedido completo? (${ventas.length} juego${ventas.length > 1 ? 's' : ''})\nEsto eliminará todas las ventas del pedido #${transactionId}.`, () => {
     ventas.forEach(v => {
       if (v.productType === 'paquete') {
         const pItem = AppState.paquetes.find(p => String(p.id) === String(v.inventoryId));
@@ -499,7 +499,7 @@ export function anularFactura(id) {
   const sale = AppState.sales.find(v => String(v.id) === String(id));
   if (!sale) return;
 
-  const msg = sale.esta_anulada ? "Â¿Deseas REACTIVAR esta factura?" : "Â¿Deseas ANULAR esta factura?";
+  const msg = sale.esta_anulada ? "¿Deseas REACTIVAR esta factura?" : "¿Deseas ANULAR esta factura?";
   showDeleteConfirmModal(msg, () => {
     sale.esta_anulada = !sale.esta_anulada;
     saveLocal();
@@ -524,7 +524,7 @@ export function anularPedidoCompleto(transactionId) {
   if (ventas.length === 0) return;
 
   const estaAnulado = ventas.every(v => v.esta_anulada);
-  const msg = estaAnulado ? "Â¿Deseas REACTIVAR este pedido completo?" : "Â¿Deseas ANULAR este pedido completo?";
+  const msg = estaAnulado ? "¿Deseas REACTIVAR este pedido completo?" : "¿Deseas ANULAR este pedido completo?";
 
   showDeleteConfirmModal(msg, () => {
     const nuevoEstado = !estaAnulado;
@@ -571,9 +571,9 @@ export function closeModalDetallesVenta() {
 
 export function copiarFactura(ventaId) {
   const v = AppState.sales.find(v => String(v.id) === String(ventaId));
-  if (!v) { showToast('Error: No se encontrÃ³ la venta'); return; }
+  if (!v) { showToast('Error: No se encontró la venta'); return; }
   const dataInv = getInventoryItemData(v);
-  const texto = `ðŸ“œ *REMISION DE VENTA* ðŸ“œ\nID: ${v.id}\nFecha: ${v.fecha}\nJuego: ${dataInv.jNombre}\nTipo: ${v.tipo_cuenta}\nCorreo: ${dataInv.cCorreo}\nPass: ${dataInv.cPass}\nPrecio: $${(v.venta || 0).toLocaleString('es-CO')}\nÂ¡Gracias por tu compra! ðŸŽ®`;
+  const texto = `ðŸ“œ *REMISION DE VENTA* ðŸ“œ\nID: ${v.id}\nFecha: ${v.fecha}\nJuego: ${dataInv.jNombre}\nTipo: ${v.tipo_cuenta}\nCorreo: ${dataInv.cCorreo}\nPass: ${dataInv.cPass}\nPrecio: $${(v.venta || 0).toLocaleString('es-CO')}\n¡Gracias por tu compra! ðŸŽ®`;
   navigator.clipboard.writeText(texto).then(() => showToast('Factura copiada al portapapeles'));
 }
 
@@ -581,8 +581,8 @@ export function copiarFacturaConfirmacion(ventaId) {
   const v = AppState.sales.find(v => String(v.id) === String(ventaId));
   if (!v) { showToast('Venta no encontrada'); return; }
   const dataInv = getInventoryItemData(v);
-  const texto = `âœ… *CONFIRMACIÃ“N DE PAGO* âœ…\nID: ${v.id}\nJuego: ${dataInv.jNombre}\nTipo: ${v.tipo_cuenta}\nPrecio: $${(v.venta || 0).toLocaleString('es-CO')}\nEstado: Recibido\nÂ¡Disfruta tu juego! ðŸš€`;
-  navigator.clipboard.writeText(texto).then(() => showToast('ConfirmaciÃ³n copiada al portapapeles'));
+  const texto = `âœ… *CONFIRMACIÓN DE PAGO* âœ…\nID: ${v.id}\nJuego: ${dataInv.jNombre}\nTipo: ${v.tipo_cuenta}\nPrecio: $${(v.venta || 0).toLocaleString('es-CO')}\nEstado: Recibido\n¡Disfruta tu juego! ðŸš€`;
+  navigator.clipboard.writeText(texto).then(() => showToast('Confirmación copiada al portapapeles'));
 }
 
 export function handleVentaGameAutocomplete(input, rowId) {
@@ -950,7 +950,7 @@ export function addVentaGameRow(data = null, isEdit = false) {
   }
   rowDiv.innerHTML = `
     <div class="form-group" style="position:relative; grid-column:1/-1; margin-bottom:5px;">
-      <label>TÃ­tulo del Juego / ID</label>
+      <label>Título del Juego / ID</label>
       <input type="text" class="scraping-input row-juego-search" placeholder="Buscar..." value="${gT}" oninput="handleVentaGameAutocomplete(this, '${rowId}')" autocomplete="off" style="width:100%;">
       <input type="hidden" class="row-inventory-id" value="${data?.inventoryId || ''}">
       <input type="hidden" class="row-product-type" value="game">
@@ -1003,7 +1003,7 @@ export function addVentaMembresiaRow(data = null, isEdit = false) {
   let iT = ''; if (data?.inventoryId) { const m = AppState.membresias.find(ag => String(ag.id) === String(data.inventoryId)); iT = m ? `(${m.id}) ${m.tipo}` : data.inventoryId; }
   rowDiv.innerHTML = `
     <div class="form-group" style="position:relative; grid-column:1/-1; margin-bottom:5px;">
-      <label style="color:#f59e0b;">MembresÃ­a / ID</label>
+      <label style="color:#f59e0b;">Membresía / ID</label>
       <input type="text" class="scraping-input row-membresia-search" placeholder="Buscar..." value="${iT}" oninput="handleVentaMembresiaAutocomplete(this, '${rowId}')" autocomplete="off" style="width:100%; border-color:rgba(245,158,11,0.3);">
       <input type="hidden" class="row-inventory-id" value="${data?.inventoryId || ''}"><input type="hidden" class="row-product-type" value="membresia">
       <div id="suggestions-${rowId}" class="autocomplete-suggestions"></div>
@@ -1046,7 +1046,7 @@ export function addVentaPhysicalRow(data = null, isEdit = false) {
   rowDiv.style.cssText = 'display:grid; grid-template-columns:1fr auto auto auto; gap:10px; align-items:end;';
   let iT = ''; if (data?.inventoryId) { const p = (AppState.physicalInventory || []).find(it => String(it.id) === String(data.inventoryId)); iT = p ? `(${p.id}) ${p.detalle}` : data.inventoryId; }
   rowDiv.innerHTML = `
-    <div class="form-group" style="position:relative; margin:0;"><label style="color:#2dd4bf; font-size:0.75rem; margin-bottom:4px; display:block;">Producto FÃ­sico</label>
+    <div class="form-group" style="position:relative; margin:0;"><label style="color:#2dd4bf; font-size:0.75rem; margin-bottom:4px; display:block;">Producto Físico</label>
       <input type="text" class="scraping-input row-physical-search" placeholder="Buscar..." value="${iT}" oninput="handleVentaPhysicalAutocomplete(this, '${rowId}')" autocomplete="off" style="width:100%; border-color:rgba(45,212,191,0.3);">
       <input type="hidden" class="row-inventory-id" value="${data?.inventoryId || ''}"><input type="hidden" class="row-product-type" value="physical"><input type="hidden" class="row-tipo-cuenta" value="Fisico">
       <div id="suggestions-${rowId}" class="autocomplete-suggestions"></div>
@@ -1067,12 +1067,12 @@ export function addVentaCodigoRow(data = null, isEdit = false) {
   rowDiv.style.cssText = 'display:flex; gap:10px; align-items:flex-end; padding:10px; background:rgba(168,85,247,0.05); border:1px solid rgba(168,85,247,0.1); border-radius:8px; margin-bottom:8px;';
   const denoms = [...new Set((AppState.inventoryCodes || []).filter(c => c.estado === 'ON' && !c.usado).map(c => c.precioUsd))].sort((a,b) => a-b);
   rowDiv.innerHTML = `
-    <div class="form-group" style="margin:0; flex:1;"><label style="color:var(--accent-purple); font-size:0.75rem; margin-bottom:4px; display:block;">DenominaciÃ³n (USD)</label>
+    <div class="form-group" style="margin:0; flex:1;"><label style="color:var(--accent-purple); font-size:0.75rem; margin-bottom:4px; display:block;">Denominación (USD)</label>
       <select class="form-select row-codigo-denom" onchange="updateCodigoRowMax('${rowId}', this)" style="width:100%; height:38px; background:rgba(0,0,0,0.3); color:#fff; border:1px solid rgba(168,85,247,0.3); border-radius:6px;">
         <option value="">-- Seleccionar --</option>
         ${denoms.map(d => `<option value="${d}" ${String(d) === String(data?.codigoDenom || '') ? 'selected' : ''} data-max="${(AppState.inventoryCodes||[]).filter(c => c.estado === 'ON' && !c.usado && String(c.precioUsd) === String(d)).length}">${d} USD</option>`).join('')}
       </select>
-      <input type="hidden" class="row-product-type" value="codigo"><input type="hidden" class="row-inventory-id" value=""><input type="hidden" class="row-tipo-cuenta" value="CÃ³digo">
+      <input type="hidden" class="row-product-type" value="codigo"><input type="hidden" class="row-inventory-id" value=""><input type="hidden" class="row-tipo-cuenta" value="Código">
     </div>
     <div class="form-group" style="margin:0; width:100px;"><label style="color:var(--text-muted); font-size:0.75rem; margin-bottom:4px; display:block;">Cantidad</label>
       <div style="display:flex; align-items:center; background:rgba(0,0,0,0.3); border-radius:6px; border:1px solid rgba(168,85,247,0.3); overflow:hidden;">
@@ -1198,18 +1198,18 @@ export function saveVenta() {
       if (pType === 'codigo') {
         const denom = row.querySelector('.row-codigo-denom')?.value;
         const qty = Math.max(1, parseInt(row.querySelector('.row-codigo-qty')?.value || '1'));
-        if (!denom) { showToast('âš ï¸ Selecciona denominaciÃ³n.', 'warning'); return; }
+        if (!denom) { showToast('âš ï¸ Selecciona denominación.', 'warning'); return; }
         const codesDisp = (AppState.inventoryCodes || []).filter(c => c.estado === 'ON' && !c.usado && parseFloat(c.precioUsd) === parseFloat(denom));
         if (codesDisp.length < qty) { showToast(`âš ï¸ Solo hay ${codesDisp.length} disponibles.`, 'warning'); return; }
         for (let i = 0; i < qty; i++) {
           const isSplit = commonData.vendedor2 && commonData.vendedor2 !== commonData.vendedor1;
           const finalPrice = isSplit ? precio / 2 : precio;
           const gId = 'V-' + Math.random().toString(36).substr(2, 6).toUpperCase();
-          AppState.sales.unshift({ ...commonData, id: gId, transaction_id: txId, fecha: t.date, hora: t.time, inventoryId: '', codigoDenom: denom, tipo_cuenta: 'CÃ³digo', venta: finalPrice, productType: 'codigo', vendedor: commonData.vendedor1 });
+          AppState.sales.unshift({ ...commonData, id: gId, transaction_id: txId, fecha: t.date, hora: t.time, inventoryId: '', codigoDenom: denom, tipo_cuenta: 'Código', venta: finalPrice, productType: 'codigo', vendedor: commonData.vendedor1 });
           countSaved++;
           if (isSplit) {
             const gId2 = 'V-' + Math.random().toString(36).substr(2, 6).toUpperCase();
-            AppState.sales.unshift({ ...commonData, id: gId2, transaction_id: txId, fecha: t.date, hora: t.time, inventoryId: '', codigoDenom: denom, tipo_cuenta: 'CÃ³digo', venta: finalPrice, productType: 'codigo', vendedor: commonData.vendedor2, isPartiallyPaid: true });
+            AppState.sales.unshift({ ...commonData, id: gId2, transaction_id: txId, fecha: t.date, hora: t.time, inventoryId: '', codigoDenom: denom, tipo_cuenta: 'Código', venta: finalPrice, productType: 'codigo', vendedor: commonData.vendedor2, isPartiallyPaid: true });
             countSaved++;
           }
         }
@@ -1245,13 +1245,13 @@ export function saveVenta() {
     });
     if (countSaved === 0) { showToast('âš ï¸ Completa al menos un juego.'); return; }
     logEvent('Venta Creada', `TX: ${txId} | items: ${countSaved}`);
-    showToast(`âœ… ${countSaved} registrados con Ã©xito.`);
+    showToast(`âœ… ${countSaved} registrados con éxito.`);
   }
   saveLocal(); renderVentas(); closeModalVenta(); updateDashboard(); renderInventoryJuegos();
 }
 
 export function deleteVenta(id) {
-  showDeleteConfirmModal('Â¿Eliminar este registro?', () => {
+  showDeleteConfirmModal('¿Eliminar este registro?', () => {
     const v = AppState.sales.find(s => String(s.id) === String(id));
     if (v) {
       if (v.productType === 'paquete') {
@@ -1332,7 +1332,7 @@ export function actualizarPanelVariables() { const selector = document.getElemen
 export function guardarPlantilla() { const selector = document.getElementById('plantillaSelector'); const textarea = document.getElementById('plantillaTextarea'); if (selector && textarea) { const tipo = selector.value; const texto = textarea.value; AppState.plantillas[tipo] = texto; if (typeof saveLocal === 'function') saveLocal(); if (typeof showToast === 'function') showToast('Plantilla guardada correctamente'); closeModalPlantillas(); } }
 export function insertarVariable(variableStr) { const textarea = document.getElementById('plantillaTextarea'); if (!textarea) return; const startPos = textarea.selectionStart; const endPos = textarea.selectionEnd; const textBefore = textarea.value.substring(0, startPos); const textAfter = textarea.value.substring(endPos, textarea.value.length); textarea.value = textBefore + variableStr + textAfter; textarea.selectionStart = startPos + variableStr.length; textarea.selectionEnd = startPos + variableStr.length; textarea.focus(); }
 
-// --- MÃ“DULO CUENTAS PSN (SOLO VENDIDAS) ---
+// --- MÓDULO CUENTAS PSN (SOLO VENDIDAS) ---
 export function renderCuentasPSN() {
   const user = AppState.currentUser;
   if (!user) return;
@@ -1360,7 +1360,7 @@ export function renderCuentasPSN() {
     const status = c.tecnicoStatus || 'Sin Novedad';
     let rowClass = '';
     if (status === 'Sospechoso') rowClass = 'row-suspicious';
-    else if (status === 'Fallas TÃ©cnicas') rowClass = 'row-technical';
+    else if (status === 'Fallas Técnicas') rowClass = 'row-technical';
     const tr = document.createElement('tr');
     tr.className = rowClass;
     tr.innerHTML = `
@@ -1438,7 +1438,7 @@ export function renderCuentasPSN() {
         return `
             <div class="badge-2fa ${badgeClass}" 
                  onclick="${count > 0 ? `open2FAModal('${c.id}', '${c._itemType}')` : ''}"
-                 title="${count > 0 ? (count <= 3 ? 'Pocos cÃ³digos restantes' : 'Ver cÃ³digos') : 'Sin cÃ³digos'}">
+                 title="${count > 0 ? (count <= 3 ? 'Pocos códigos restantes' : 'Ver códigos') : 'Sin códigos'}">
                ${count}
             </div>
           `;
@@ -1449,7 +1449,7 @@ export function renderCuentasPSN() {
         <select class="premium-table-select" onchange="updateCuentaPsnStatus('${c.id}', this.value)">
           <option value="Sin Novedad" ${status === 'Sin Novedad' ? 'selected' : ''}>Sin Novedad</option>
           <option value="Sospechoso" ${status === 'Sospechoso' ? 'selected' : ''}>Sospechoso</option>
-          <option value="Fallas TÃ©cnicas" ${status === 'Fallas TÃ©cnicas' ? 'selected' : ''}>Fallas TÃ©cnicas</option>
+          <option value="Fallas Técnicas" ${status === 'Fallas Técnicas' ? 'selected' : ''}>Fallas Técnicas</option>
         </select>
       </td>
       <td>

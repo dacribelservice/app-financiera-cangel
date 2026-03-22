@@ -8,7 +8,7 @@ global.confirm = mockConfirm;
 window.lucide = { createIcons: vi.fn() };
 
 describe('Pruebas de UI - Inventario', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     // Reiniciamos el estado compartido
     AppState.inventoryGames = [];
     AppState.paquetes = [];
@@ -151,7 +151,15 @@ describe('Pruebas de UI - Inventario', () => {
       <div id="toast-container"></div>
     `;
 
-    // Vincular funciones del GlobalBridge al objeto window (como hace app.js)
+    // Sincronizar sistema de modales con ui/modals.js para corregir el flujo de eliminación
+    const modals = await import('../ui/modals.js');
+    
+    // Inyectar manualmente en el bridge para que coincidan las referencias de estado
+    GlobalBridge.showDeleteConfirmModal = modals.showDeleteConfirmModal;
+    GlobalBridge.executeDeleteAction = modals.executeDeleteAction;
+    GlobalBridge.closeDeleteConfirmModal = modals.closeDeleteConfirmModal;
+
+    // Vincular funciones del GlobalBridge al objeto window...
     Object.keys(GlobalBridge).forEach(key => {
       window[key] = GlobalBridge[key];
     });

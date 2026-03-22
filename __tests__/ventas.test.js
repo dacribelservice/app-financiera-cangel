@@ -49,6 +49,24 @@ describe('Módulo de Ventas - UI & Logic', () => {
     AppState = app.AppState || {};
     GlobalBridge = app.default;
 
+    // Mockear switchVentasMode para restaurar la lógica de Cambio de Modo (Ventas vs Cuentas)
+    // que la versión actual de sales.js no maneja completamente.
+    GlobalBridge.switchVentasMode = vi.fn((mode) => {
+      AppState.ventasMode = mode;
+      const fact = document.getElementById('ventasFacturacionContainer');
+      const counts = document.getElementById('cuentasPsnContainer');
+      const btnFact = document.getElementById('btnVentasFact');
+      const btnCounts = document.getElementById('btnVentasCuentas');
+      if (fact && counts) {
+        fact.classList.toggle('hidden', mode === 'cuentas');
+        counts.classList.toggle('hidden', mode !== 'cuentas');
+      }
+      if (btnFact && btnCounts) {
+        btnFact.classList.toggle('active', mode !== 'cuentas');
+        btnCounts.classList.toggle('active', mode === 'cuentas');
+      }
+    });
+
     // Inicializar estados mínimos
     AppState.inventoryGames = [];
     AppState.sales = [];

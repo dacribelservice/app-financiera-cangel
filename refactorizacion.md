@@ -24,8 +24,8 @@
 
 ### 🔴 FASE 5: UI Y LÓGICA DE NEGOCIO
 - [x] Fase 5.1a: Crear `ui/inventory.js`. Extraer funciones de renderizado y gestión de Inventario (Juegos, Códigos, Paquetes, Membresías, Xbox, Físico).
-- [ ] Fase 5.1b: Crear `ui/sales.js`. Extraer lógica de Ventas y Facturación.
-- [ ] Fase 5.1c: Crear `ui/clients.js`. Extraer lógica de Clientes y CRM.
+- [x] Fase 5.1b: Crear `ui/sales.js`. Extraer lógica de Ventas y Facturación (COMPLETADA).
+- [ ] Fase 5.1c: Crear `ui/clients.js`. Extraer lógica de Clientes y CRM (PRÓXIMO PASO).
 
 ### 🟣 FASE 6: ORQUESTACIÓN FINAL
 - [ ] Fase 6.1: Limpiar `app.js` para que actúe EXCLUSIVAMENTE como el Entry Point principal.
@@ -163,27 +163,14 @@
    - [x] Ejecutar `npm run test` (49/49 OK).
    - [x] Declarar Fase 5.1a COMPLETADA ✅.
 
-#### **Fase 5.1b: Extracción de UI Ventas (EN PROGRESO 🟡)**
-1. **Preparación de Módulo:**
-   - [x] Crear `ui/sales.js`.
-2. **Extracción (desde app.js):**
-   - [x] Mover Lógica de Renderizado y Métricas (`renderVentas`, `updateVentasMetrics`).
-   - [x] Mover Gestión de Filtros y Búsqueda (`limpiarFiltrosVentas`, `switchVentasMode`, `handleVentasSearchDebounce`).
-   - [x] Mover Gestión de Modales y Filas Dinámicas (Juegos, Paquetes, Membresías, Xbox, Físico, Códigos).
-   - [x] Mover Lógica de Autocompletado (6 tipos de productos + Clientes).
-   - [x] Mover Lógica de Negocio: Guardado (`saveVenta`) y Eliminación (`deleteVenta`).
-   - [x] Mover Invocación de Facturas y Remisiones (`copiarFactura`, `copiarFacturaConfirmacion`, `showFactura`).
-3. **Integración:**
-   - [x] Exportar todas las funciones desde `ui/sales.js`.
-   - [x] Importar en `app.js`.
-   - [x] Eliminar código redundante en `app.js` (COMPLETADA: `showFactura`).
-   - [x] Actualizar `GlobalBridge` en `app.js`.
-   - [x] Corregir exportaciones faltantes en `app.js` (`asignarClienteALista`).
-   - [x] Corregir exportaciones faltantes en `ui/sales.js` (`renderCuentasPSN`).
-   - [x] Eliminar duplicados de funciones PSN en `app.js` (`getGameSlots`).
-4. **Verificación:**
-   - [ ] Ejecutar `npm run test` para validar integridad.
-   - [ ] Declarar Fase 5.1b COMPLETADA.
+#### **Fase 5.1b: Extracción de UI Ventas (COMPLETADA ✅)**
+- [x] **Extracción de Muestras:** Se extrajo `ui/sales.js` y `ui/modals.js`.
+- [x] **Estabilidad:** Tests 52/52 pasando exitosamente.
+- [x] **Saneamiento:** Limpieza de codificación UTF-8 y bordes decorativos.
+
+#### **Fase 5.1c: Crear ui/clients.js (PRÓXIMO PASO 🔵)**
+- [ ] Extraer lógica de Clientes y CRM.
+- [ ] Implementar gestión modular de base de datos de clientes.
 
 ---
 

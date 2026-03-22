@@ -60,9 +60,9 @@ import {
   renderCuentasPSN, updateCuentaPsnStatus, getGameSlots
 } from './ui/sales.js';
 import { sanitizeInventoryDuplicates } from './utils/sanitizer.js';
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
 /* 1. SISTEMA DE LOGIN Y ROLES AVANZADOS   */
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
 function doLogin() {
   const email = document.getElementById('loginName').value.trim().toLowerCase();
   const pass = document.getElementById('loginPass').value;
@@ -88,23 +88,23 @@ function doLogin() {
     // Determine first allowed tab
     const firstTab = getFirstAllowedTab(user);
     if (firstTab) switchTab(firstTab);
-    logEvent('LOGIN', 'IniciÃ³ sesiÃ³n en el sistema');
+    logEvent('LOGIN', 'Inició sesión en el sistema');
     saveLocal();
   } else {
-    document.getElementById('loginError').textContent = 'Correo o contraseÃ±a incorrectos, o usuario inactivo.';
+    document.getElementById('loginError').textContent = 'Correo o contraseña incorrectos, o usuario inactivo.';
   }
 }
 async function recuperarPassword() {
   const email = document.getElementById('loginName').value.trim().toLowerCase();
   if (email === 'cangel.games.soporte@gmail.com') {
-    await showPremiumAlert("Acceso", "Se ha enviado un correo de recuperaciÃ³n a cangel.games.soporte@gmail.com con instrucciones.", "info");
+    await showPremiumAlert("Acceso", "Se ha enviado un correo de recuperación a cangel.games.soporte@gmail.com con instrucciones.", "info");
   } else {
-    await showPremiumAlert("Acceso", "Dile a un administrador que restablezca tu contraseÃ±a en el mÃ³dulo de BitÃ¡cora.", "info");
+    await showPremiumAlert("Acceso", "Dile a un administrador que restablezca tu contraseña en el módulo de Bitácora.", "info");
   }
 }
 function doLogout() {
   if (AppState.currentUser) {
-    logEvent('LOGOUT', 'CerrÃ³ sesiÃ³n en el sistema');
+    logEvent('LOGOUT', 'Cerró sesión en el sistema');
   }
   AppState.currentUser = null;
   document.getElementById('loginScreen').classList.remove('hidden');
@@ -126,14 +126,14 @@ function applyPermissions() {
     const tabId = tab.getAttribute('data-tab');
     // Mapeo de data-tab a propiedad de permiso
     const permKey = `p_${tabId}_ver`;
-    // Verificamos si tiene el permiso especÃ­fico p_xxx_ver
+    // Verificamos si tiene el permiso específico p_xxx_ver
     if (user.permisos && user.permisos[permKey] === true) {
       tab.style.display = 'flex';
     } else {
       tab.style.display = 'none';
     }
   });
-  // --- Permisos Granulares de Botones de AcciÃ³n ---
+  // --- Permisos Granulares de Botones de Acción ---
   const actionButtonsMapping = {
     'btnNuevaVenta': 'p_ventas_crear',
     'btnAbrirPlantillas': 'p_ventas_crear',
@@ -152,7 +152,7 @@ function applyPermissions() {
       }
     }
   });
-  // BotÃ³n de Limpieza (Solo Super Admin)
+  // Botón de Limpieza (Solo Super Admin)
   const btnLimpiar = document.getElementById('btnLimpiarDatos');
   if (btnLimpiar) {
     btnLimpiar.style.display = (user.email === 'cangel.games.soporte@gmail.com') ? 'flex' : 'none';
@@ -168,9 +168,9 @@ function getFirstAllowedTab(user) {
   }
   return 'catalogo'; // Default fallback
 }
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
 /* 1.1 MOTOR DE BITÃCORA (AUDIT LOG)       */
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
 export function logEvent(accion, detalles) {
   const user = AppState.currentUser;
   const userName = user ? user.nombre : 'Sistema';
@@ -197,7 +197,7 @@ export function logEvent(accion, detalles) {
     timestamp: now.getTime()
   };
   AppState.auditLog.unshift(logEntry);
-  // Persistencia automÃ¡tica
+  // Persistencia automática
   saveLocal();
 }
 function initTabs() {
@@ -209,17 +209,17 @@ function initTabs() {
 function switchTab(tabName) {
   if (!tabName) return;
   AppState.activeTab = tabName;
-  // Actualizar PestaÃ±as Superiores
+  // Actualizar Pestañas Superiores
   document.querySelectorAll('.browser-tab').forEach(t => {
     t.classList.toggle('active', t.dataset.tab === tabName);
   });
-  // Mostrar PÃ¡gina
+  // Mostrar Página
   document.querySelectorAll('.page-content').forEach(p => {
     p.classList.remove('active');
   });
   const targetPage = document.getElementById(`page${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`);
   if (targetPage) targetPage.classList.add('active');
-  // Triggers de actualizaciÃ³n
+  // Triggers de actualización
   if (tabName === 'dashboard') updateDashboard();
   if (tabName === 'analisis') {
     renderAnalysisTable();
@@ -241,9 +241,9 @@ function switchTab(tabName) {
   if (tabName === 'analytics') initAnalytics();
   if (window.lucide) window.lucide.createIcons();
 }
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
 /* 2. DASHBOARD & KPIS                     */
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
 export function updateDashboard() {
   const ingresos = AppState.sales
     .filter(v => !v.esta_anulada)
@@ -275,7 +275,7 @@ export function updateDashboard() {
   kpiGanancia.textContent = `$${neta.toLocaleString('es-CO')}`;
   kpiGanancia.classList.add('kpi-glow');
   document.getElementById('kpiJuegos').textContent = AppState.catalog.length;
-  // Actualizar Socios (Removido segÃºn solicitud)
+  // Actualizar Socios (Removido según solicitud)
   renderTop5();
   updateDashboardCharts();
   if (typeof renderClientHistory === 'function') {
@@ -316,9 +316,9 @@ function renderTop5() {
     container.appendChild(item);
   });
 }
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-/* 3. MÃ“DULO ANÃLISIS (PS STORE)           */
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
+/* 3. MÓDULO ANÃLISIS (PS STORE)           */
+/* ============================================================ */
 async function handleExtractAI() {
   const url = document.getElementById('urlAI').value.trim();
   if (!url) return;
@@ -328,8 +328,8 @@ async function handleExtractAI() {
     const data = await apiFetchPSDetails(url);
     console.log('[IA-Extract] Raw Data:', data);
     if (data.error) throw new Error(data.error);
-    if (!data.title) throw new Error('No se pudo extraer el tÃ­tulo del juego');
-    // Normalizar datos de IA para que coincidan con la estructura de la aplicaciÃ³n
+    if (!data.title) throw new Error('No se pudo extraer el título del juego');
+    // Normalizar datos de IA para que coincidan con la estructura de la aplicación
     const normalizedData = {
       nombre: data.title || 'Juego Desconocido',
       imagen: data.image_url || '',
@@ -352,10 +352,10 @@ function processExtractionResult(data, url) {
   const actualSale = (data.precioSale && data.precioSale > 0) ? data.precioSale : data.precioBase;
   const isNew = existingIndex < 0;
   const oldItem = !isNew ? AppState.analysis[existingIndex] : null;
-  // Calculamos la compra: 1. Inventario histÃ³rico, 2. Valor previo, 3. Precio Sale actual
+  // Calculamos la compra: 1. Inventario histórico, 2. Valor previo, 3. Precio Sale actual
   let compVal = actualSale;
   if (!isNew && oldItem.compra > 0) compVal = oldItem.compra;
-  // Buscar si hay algo mÃ¡s barato en inventario ahora mismo
+  // Buscar si hay algo más barato en inventario ahora mismo
   const inventoryMinPrices = {};
   (AppState.inventoryGames || []).forEach(g => {
     const title = (g.juego || '').toUpperCase().trim();
@@ -415,7 +415,7 @@ function renderGameCard(data, size = 'medium') {
       <span style="color:#fff; font-weight:600;">${v.price}</span>
     </div>
   `).join('') : '';
-  // Layout DinÃ¡mico
+  // Layout Dinámico
   let cardStyle = `background:#0f172a; border:1px solid rgba(255,255,255,0.1); border-radius:12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-family:'Inter',sans-serif; position:relative; overflow:hidden; transition: all 0.2s ease;`;
   if (isXS) {
     cardStyle += `display:flex; align-items:center; gap:10px; padding:8px 12px; max-width:320px;`;
@@ -434,7 +434,7 @@ function renderGameCard(data, size = 'medium') {
           ${!isMedium ? savingsHtml : ''}
         </div>
         ${isMedium ? `<p style="color:var(--accent-cyan); font-size:0.8rem; margin:2px 0; font-weight:700;">${data.publisher || 'Publisher'}</p>` : ''}
-        <!-- Etiquetas de VersiÃ³n -->
+        <!-- Etiquetas de Versión -->
         <div style="display: flex; gap: 6px; margin: 8px 0;">
           ${data.ps4 && data.ps5 ?
       `<span style="background:rgba(0,112,204,0.15); color:#00a3ff; padding:2px 10px; border-radius:6px; font-size:0.65rem; font-weight:900; border:1px solid rgba(0,163,255,0.3); text-transform:uppercase; letter-spacing:0.5px;">PS4 | PS5</span>` :
@@ -457,7 +457,7 @@ function renderGameCard(data, size = 'medium') {
 }
 async function addToCatalogFromAnalysis() {
   if (AppState.analysis.length === 0) {
-    await showPremiumAlert('CatÃ¡logo', 'No hay datos para agregar', 'info');
+    await showPremiumAlert('Catálogo', 'No hay datos para agregar', 'info');
     return;
   }
   const tbody = document.getElementById('tableBody');
@@ -470,15 +470,15 @@ async function addToCatalogFromAnalysis() {
     const precioComp = parseFloat(cells[5].textContent.replace('$', '')) || 0;
     const precioVentaPS4 = parseFloat(cells[9].textContent.replace('$', '')) || 0;
     const precioVentaPS5 = parseFloat(cells[10].textContent.replace('$', '')) || 0;
-    // Buscar si el juego ya existe en el catÃ¡logo para actualizar precios
+    // Buscar si el juego ya existe en el catálogo para actualizar precios
     const catalogIndex = AppState.catalog.findIndex(c => c.nombre.trim().toLowerCase() === item.nombre.trim().toLowerCase());
     if (catalogIndex >= 0) {
       // Actualizar precios existentes
       AppState.catalog[catalogIndex].precio_ps4 = precioVentaPS4 || item.sale;
       AppState.catalog[catalogIndex].precio_ps5 = precioVentaPS5 || item.sale;
-      AppState.catalog[catalogIndex].image = item.image; // Actualizar imagen tambiÃ©n
+      AppState.catalog[catalogIndex].image = item.image; // Actualizar imagen también
     } else {
-      // AÃ±adir nuevo
+      // Añadir nuevo
       AppState.catalog.push({
         id: Date.now() + index,
         nombre: item.nombre,
@@ -488,12 +488,12 @@ async function addToCatalogFromAnalysis() {
       });
     }
   });
-  // Comentado para no borrar los datos del anÃ¡lisis, dejarlos ahÃ­ para actualizaciÃ³n manual
+  // Comentado para no borrar los datos del análisis, dejarlos ahí para actualización manual
   // AppState.analysis = [];
   renderAnalysisTable();
   renderCatalog();
   saveLocal();
-  await showPremiumAlert("CatÃ¡logo", "Juegos agregados/actualizados en el catÃ¡logo correctamente", "success");
+  await showPremiumAlert("Catálogo", "Juegos agregados/actualizados en el catálogo correctamente", "success");
 }
 function addEmptyRow() {
   AppState.analysis.unshift({
@@ -525,7 +525,7 @@ export function renderAnalysisTable() {
     currency: 'COP',
     minimumFractionDigits: 0
   });
-  // 1. Calcular precios mÃ­nimos del inventario para cruzar datos
+  // 1. Calcular precios mínimos del inventario para cruzar datos
   const inventoryMinPrices = {};
   (AppState.inventoryGames || []).forEach(g => {
     const title = (g.juego || '').toUpperCase().trim();
@@ -550,16 +550,16 @@ export function renderAnalysisTable() {
     if (row.color === 'Verde') tr.classList.add('row-pastel-verde');
     else if (row.color === 'Amarillo') tr.classList.add('row-pastel-amarillo');
     else if (row.color === 'Rojo') tr.classList.add('row-pastel-rojo');
-    // Buscar precio mÃ­nimo histÃ³rico en inventario para este nombre
+    // Buscar precio mínimo histórico en inventario para este nombre
     const titleMatch = (row.nombre || '').toUpperCase().trim();
     const historicoInv = inventoryMinPrices[titleMatch];
-    // SincronizaciÃ³n PROFUNDA: Siempre asegurar que Costo = Compra * Divisa
+    // Sincronización PROFUNDA: Siempre asegurar que Costo = Compra * Divisa
     if (historicoInv !== undefined) {
       row.compra = historicoInv;
     }
-    // Forzamos el recÃ¡lculo SIEMPRE para evitar el efecto "congelado"
+    // Forzamos el recálculo SIEMPRE para evitar el efecto "congelado"
     row.costo = Math.round((row.compra || 0) * AppState.exchangeRate);
-    // Recalcular P. MÃ­nimo tambiÃ©n para que sea consistente
+    // Recalcular P. Mínimo también para que sea consistente
     const numVentas = parseFloat(row.venta4) || 0;
     row.pMinimo = numVentas > 0 ? Math.round(row.costo / numVentas) : 0;
     const valorCompraVisual = row.compra || 0;
@@ -601,7 +601,7 @@ export function renderAnalysisTable() {
   });
 }
 async function editAnalysisImage(id) {
-  const url = await showPremiumPrompt('Imagen del Juego', 'Pega el enlace de la imagen a continuaciÃ³n:', 'URL de la Imagen:');
+  const url = await showPremiumPrompt('Imagen del Juego', 'Pega el enlace de la imagen a continuación:', 'URL de la Imagen:');
   if (url) {
     const item = AppState.analysis.find(a => a.id === id);
     if (item) {
@@ -616,7 +616,7 @@ function updateAnalysisData(id, field, val) {
   if (item) {
     let cleanVal = val.replace(/[^\d.]/g, '').trim();
     const numericFields = ['precioBase', 'sale', 'compra', 'costo', 'venta4', 'pMinimo', 'ps4Price', 'ps5Price', 'psnUsd'];
-    const oldVal = item[field]; // Para auditorÃ­a
+    const oldVal = item[field]; // Para auditoría
     if (numericFields.includes(field)) {
       let numVal = parseFloat(cleanVal) || 0;
       if (['venta4'].includes(field)) numVal = Math.round(numVal);
@@ -636,25 +636,25 @@ function updateAnalysisData(id, field, val) {
       item[field] = val;
     }
     if (typeof logEvent === 'function') {
-      logEvent('CatÃ¡logo: AnÃ¡lisis Modificado', `Juego: ${item.nombre} (ID: ${id}) | Campo: ${field} | Valor: ${val}`);
+      logEvent('Catálogo: Análisis Modificado', `Juego: ${item.nombre} (ID: ${id}) | Campo: ${field} | Valor: ${val}`);
     }
     renderAnalysisTable();
     saveLocal();
   }
 }
 function deleteAnalysis(id) {
-  showDeleteConfirmModal("Â¿EstÃ¡s seguro de que deseas eliminar este anÃ¡lisis?", () => {
+  showDeleteConfirmModal("¿Estás seguro de que deseas eliminar este análisis?", () => {
     const aToDelete = AppState.analysis.find(a => a.id === id);
     if (aToDelete && typeof logEvent === 'function') {
-      logEvent('CatÃ¡logo: AnÃ¡lisis Eliminado', `ID: ${id} | Juego: ${aToDelete.nombre}`);
+      logEvent('Catálogo: Análisis Eliminado', `ID: ${id} | Juego: ${aToDelete.nombre}`);
     }
     AppState.analysis = AppState.analysis.filter(a => a.id !== id);
     renderAnalysisTable();
     saveLocal();
-    if (typeof showToast === 'function') showToast("Registro de anÃ¡lisis eliminado", "info");
+    if (typeof showToast === 'function') showToast("Registro de análisis eliminado", "info");
   });
 }
-// â”€â”€â”€â”€â”€ SincronizaciÃ³n Global de TRM â”€â”€â”€â”€â”€
+// -€-€-€-€-€ Sincronización Global de TRM -€-€-€-€-€
 function updateGlobalTRM(val) {
   const trm = parseFloat(val) || 0;
   AppState.exchangeRate = trm;
@@ -664,7 +664,7 @@ function updateGlobalTRM(val) {
     const el = document.getElementById(id);
     if (el) el.value = trm;
   });
-  // Recalcular automÃ¡ticamente todos los costos, precios mÃ­nimos y PSN en la tabla de anÃ¡lisis
+  // Recalcular automáticamente todos los costos, precios mínimos y PSN en la tabla de análisis
   AppState.analysis.forEach(item => {
     item.costo = Math.round((item.compra || 0) * trm);
     const numVentas = parseFloat(item.venta4) || 0;
@@ -675,9 +675,9 @@ function updateGlobalTRM(val) {
   if (AppState.activeTab === 'dashboard') updateDashboard();
   if (AppState.activeTab === 'analisis') renderAnalysisTable();
 }
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-/* 4. MÃ“DULO CATÃLOGO & ECOMMERCE          */
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
+/* 4. MÓDULO CATÃLOGO & ECOMMERCE          */
+/* ============================================================ */
 function renderCatalog() {
   const grid = document.getElementById('catalogGrid');
   grid.innerHTML = '';
@@ -701,7 +701,7 @@ function renderCatalog() {
           <span>PS5 <strong>$${Math.round(game.precio_ps5)}</strong></span>
         </div>
         <button class="btn-add-cart-premium" onclick="addToCartFromCard(${game.id})">
-          AÃ±adir al carrito
+          Añadir al carrito
         </button>
         ${AppState.currentUser?.role === 'admin' ? `
           <button class="btn-delete-game-abs" onclick="removeFromCatalog(${game.id})">
@@ -715,12 +715,12 @@ function renderCatalog() {
 }
 function removeFromCatalog(id) {
   showDeleteConfirmModal(
-    'Â¿EstÃ¡s seguro de eliminar este juego del catÃ¡logo?',
+    '¿Estás seguro de eliminar este juego del catálogo?',
     () => {
       AppState.catalog = AppState.catalog.filter(g => g.id !== id);
       renderCatalog();
       saveLocal();
-      if (typeof showToast === 'function') showToast('Juego eliminado del catÃ¡logo', 'info');
+      if (typeof showToast === 'function') showToast('Juego eliminado del catálogo', 'info');
     }
   );
 }
@@ -743,7 +743,7 @@ function toggleCart() {
 }
 function renderCart() {
   const container = document.getElementById('cartItems');
-  container.innerHTML = AppState.cart.length === 0 ? '<p>VacÃ­o</p>' : '';
+  container.innerHTML = AppState.cart.length === 0 ? '<p>Vacío</p>' : '';
   let total = 0;
   AppState.cart.forEach(item => {
     total += item.price;
@@ -808,7 +808,7 @@ export function showDeleteConfirmModal(message, onConfirm) {
   const overlay = document.getElementById('modalConfirmDeleteOverlay');
   const msgElement = document.getElementById('deleteConfirmMessage');
   if (overlay && msgElement) {
-    msgElement.innerText = message || "Â¿EstÃ¡s seguro de eliminar este registro?";
+    msgElement.innerText = message || "¿Estás seguro de eliminar este registro?";
     deleteActionCallback = onConfirm;
     overlay.classList.add('show');
   }
@@ -820,7 +820,7 @@ function closeDeleteConfirmModal() {
   }
   deleteActionCallback = null;
 }
-// Ejecutar la acciÃ³n si se hace clic en SÃ­, eliminar
+// Ejecutar la acción si se hace clic en Sí, eliminar
 function executeDeleteAction() {
   if (deleteActionCallback && typeof deleteActionCallback === 'function') {
     deleteActionCallback();
@@ -929,7 +929,7 @@ export function openModalHistorialVentas(itemId) {
       <div style="padding: 60px 20px; text-align: center; color: rgba(255,255,255,0.2);">
         <i class="fa-solid fa-receipt" style="font-size: 3.5rem; margin-bottom: 20px; opacity: 0.1;"></i>
         <p style="font-size: 1.1rem; font-weight: 500;">No hay ventas registradas para este ejemplar.</p>
-        <p style="font-size: 0.85rem; margin-top: 5px;">Las ventas aparecerÃ¡n aquÃ­ una vez se registren en el mÃ³dulo de ventas.</p>
+        <p style="font-size: 0.85rem; margin-top: 5px;">Las ventas aparecerán aquí una vez se registren en el módulo de ventas.</p>
       </div>
     `;
   } else {
@@ -992,9 +992,9 @@ export function openModalHistorialVentas(itemId) {
 export function closeModalHistorialVentas() {
   document.getElementById('historialVentasOverlay').classList.remove('show');
 }
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
 /* 6. BALANCE & AUDITORÃA PDF              */
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
 function updateBalance() {
   // v.venta = campo actual (COP). Fallback a v.precio para registros legacy
   const ing = AppState.sales
@@ -1002,7 +1002,7 @@ function updateBalance() {
     .reduce((sum, v) => sum + (parseFloat(v.venta) || parseFloat(v.precio) || 0), 0);
   // Ingresos adicionales (aportes, capital, etc.)
   const ingExtra = (AppState.incomeExtra || []).reduce((sum, e) => sum + (parseFloat(e.monto) || 0), 0);
-  // Costos del inventario: suma costoCop de juegos + costoCop de cÃ³digos (ambos en COP)
+  // Costos del inventario: suma costoCop de juegos + costoCop de códigos (ambos en COP)
   const cosJuegos = AppState.inventoryGames.reduce((sum, i) => sum + (parseFloat(i.costoCop) || 0), 0);
   const cosCodigos = AppState.inventoryCodes.reduce((sum, c) => sum + (parseFloat(c.costoCop) || 0), 0);
   const cos = cosJuegos + cosCodigos;
@@ -1038,7 +1038,7 @@ function renderPagoMetodoChart() {
   const dataPasado = {};
   metodos.forEach(m => { dataActual[m] = 0; dataPasado[m] = 0; });
   AppState.sales.forEach(v => {
-    if (v.esta_anulada) return; // Omitir anuladas en grÃ¡ficos de balance
+    if (v.esta_anulada) return; // Omitir anuladas en gráficos de balance
     const metodo = (v.pago || '').trim();
     if (!metodo) return;
     const valor = parseFloat(v.venta) || parseFloat(v.precio) || 0;
@@ -1120,7 +1120,7 @@ function renderPagoMetodoChart() {
   // Tarjetas resumen
   cardsContainer.innerHTML = '';
   if (labels.length === 0) {
-    cardsContainer.innerHTML = `<p style="color:rgba(200,200,220,0.5);font-size:0.85rem;">Sin ventas registradas aÃºn.</p>`;
+    cardsContainer.innerHTML = `<p style="color:rgba(200,200,220,0.5);font-size:0.85rem;">Sin ventas registradas aún.</p>`;
     return;
   }
   labels.forEach(m => {
@@ -1142,16 +1142,16 @@ function processPDF(file) {
   const statusEl = document.getElementById('pdfStatus');
   statusEl.innerHTML = 'Analizando extracto bancario...';
   setTimeout(() => {
-    statusEl.innerHTML = 'AuditorÃ­a completada. Banco como fuente de verdad OK.';
+    statusEl.innerHTML = 'Auditoría completada. Banco como fuente de verdad OK.';
     updateBalance();
   }, 1500);
 }
 async function addExpense(type) {
   const defaultDesc = type === 'operativo' ? 'Gasto operativo' : 'Gasto ocasional';
   const desc = await showPremiumPrompt(
-    type === 'operativo' ? 'AÃ±adir Gasto Operativo' : 'AÃ±adir Gasto Ocasional',
-    'Ingresa una descripciÃ³n clara para este gasto:',
-    'DescripciÃ³n:',
+    type === 'operativo' ? 'Añadir Gasto Operativo' : 'Añadir Gasto Ocasional',
+    'Ingresa una descripción clara para este gasto:',
+    'Descripción:',
     defaultDesc
   );
   if (desc === null) return; // Cancelado
@@ -1165,7 +1165,7 @@ async function addExpense(type) {
   if (m !== null) {
     const monto = parseFloat(m);
     if (isNaN(monto)) {
-      await showPremiumAlert("Error", "Por favor, ingrese un monto vÃ¡lido.", "error");
+      await showPremiumAlert("Error", "Por favor, ingrese un monto válido.", "error");
       return;
     }
     AppState.expenses.push({
@@ -1176,7 +1176,7 @@ async function addExpense(type) {
       fecha: getColombiaTime().date
     });
     if (typeof logEvent === 'function') {
-      logEvent('Balance: Gasto AÃ±adido', `Se agregÃ³ un gasto ${type} ("${desc}") por valor de $${monto}`);
+      logEvent('Balance: Gasto Añadido', `Se agregó un gasto ${type} ("${desc}") por valor de $${monto}`);
     }
     updateBalance();
     saveLocal();
@@ -1188,7 +1188,7 @@ function renderExpenses() {
   const oc = document.getElementById('gastosOcasionalesBody');
   if (!op || !oc) return;
   op.innerHTML = ''; oc.innerHTML = '';
-  // Ordenar gastos por fecha (mÃ¡s recientes primero)
+  // Ordenar gastos por fecha (más recientes primero)
   const sortedExpenses = [...AppState.expenses].sort((a, b) => b.id - a.id);
   sortedExpenses.forEach(g => {
     const tr = document.createElement('tr');
@@ -1217,7 +1217,7 @@ function eliminarGasto(id) {
   if (index !== -1) {
     const gasto = AppState.expenses[index];
     showDeleteConfirmModal(
-      `Â¿EstÃ¡s seguro de eliminar el gasto: "${gasto.desc}" por $${gasto.monto}?`,
+      `¿Estás seguro de eliminar el gasto: "${gasto.desc}" por $${gasto.monto}?`,
       () => {
         AppState.expenses.splice(index, 1);
         logEvent('Balance: Gasto Eliminado', `ID: ${id} | Desc: ${gasto.desc} | Monto: $${gasto.monto}`);
@@ -1234,8 +1234,8 @@ async function prepararEdicionGasto(id) {
   if (!gasto) return;
   const nuevaDesc = await showPremiumPrompt(
     'Editar Gasto',
-    'Modifica la descripciÃ³n segÃºn sea necesario:',
-    'DescripciÃ³n:',
+    'Modifica la descripción según sea necesario:',
+    'Descripción:',
     gasto.desc
   );
   if (nuevaDesc === null) return;
@@ -1249,7 +1249,7 @@ async function prepararEdicionGasto(id) {
   if (nuevoMonto === null) return;
   const montoVal = parseFloat(nuevoMonto);
   if (isNaN(montoVal)) {
-    await showPremiumAlert("Error", "Por favor ingresa un monto vÃ¡lido.", "error");
+    await showPremiumAlert("Error", "Por favor ingresa un monto válido.", "error");
     return;
   }
   const descVieja = gasto.desc;
@@ -1262,14 +1262,14 @@ async function prepararEdicionGasto(id) {
   saveLocal();
   if (typeof showToast === 'function') showToast('Gasto actualizado correctamente');
 }
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
 /* INGRESOS ADICIONALES (Balance)          */
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
 async function addIngreso() {
   const desc = await showPremiumPrompt(
     'Nuevo Ingreso',
-    'Registra un ingreso adicional (aporte de socio, capital, prÃ©stamo, etc.).',
-    'DescripciÃ³n:',
+    'Registra un ingreso adicional (aporte de socio, capital, préstamo, etc.).',
+    'Descripción:',
     ''
   );
   if (!desc || !desc.trim()) return;
@@ -1283,7 +1283,7 @@ async function addIngreso() {
   if (montoStr === null) return;
   const monto = parseFloat(montoStr);
   if (isNaN(monto) || monto <= 0) {
-    await showPremiumAlert('Error', 'Ingresa un monto vÃ¡lido mayor a 0.', 'error');
+    await showPremiumAlert('Error', 'Ingresa un monto válido mayor a 0.', 'error');
     return;
   }
   const t = getColombiaTime();
@@ -1337,7 +1337,7 @@ function eliminarIngreso(id) {
   if (index === -1) return;
   const ingreso = AppState.incomeExtra[index];
   showDeleteConfirmModal(
-    `Â¿Eliminar ingreso: "${ingreso.desc}" por $${ingreso.monto.toLocaleString('es-CO')}?`,
+    `¿Eliminar ingreso: "${ingreso.desc}" por $${ingreso.monto.toLocaleString('es-CO')}?`,
     () => {
       AppState.incomeExtra.splice(index, 1);
       logEvent('Balance: Ingreso Eliminado', `ID: ${id} | Desc: ${ingreso.desc} | Monto: $${ingreso.monto}`);
@@ -1351,12 +1351,12 @@ function eliminarIngreso(id) {
 async function prepararEdicionIngreso(id) {
   const ingreso = (AppState.incomeExtra || []).find(e => e.id === id);
   if (!ingreso) return;
-  const nuevaDesc = await showPremiumPrompt('Editar Ingreso', 'Modifica la descripciÃ³n:', 'DescripciÃ³n:', ingreso.desc);
+  const nuevaDesc = await showPremiumPrompt('Editar Ingreso', 'Modifica la descripción:', 'Descripción:', ingreso.desc);
   if (nuevaDesc === null) return;
   const nuevoMonto = await showPremiumPrompt('Editar Monto', 'Ingresa el nuevo valor:', 'Monto ($):', ingreso.monto, 'number');
   if (nuevoMonto === null) return;
   const montoVal = parseFloat(nuevoMonto);
-  if (isNaN(montoVal) || montoVal <= 0) { await showPremiumAlert('Error', 'Monto invÃ¡lido.', 'error'); return; }
+  if (isNaN(montoVal) || montoVal <= 0) { await showPremiumAlert('Error', 'Monto inválido.', 'error'); return; }
   const descVieja = ingreso.desc;
   ingreso.desc = nuevaDesc.trim();
   ingreso.monto = montoVal;
@@ -1366,13 +1366,13 @@ async function prepararEdicionIngreso(id) {
   saveLocal();
   showToast('Ingreso actualizado correctamente');
 }
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
 /* 7. HELPERS & PERSISTENCIA               */
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
 export function saveLocal() {
-  // 1. Persistencia sÃ­ncrona en localStorage via Service
+  // 1. Persistencia síncrona en localStorage via Service
   storageSave(AppState);
-  // 2. SincronizaciÃ³n asÃ­ncrona con Supabase (Shadow Writing) via Service
+  // 2. Sincronización asíncrona con Supabase (Shadow Writing) via Service
   const uniqueClients = {};
   if (Array.isArray(AppState.sales)) {
     AppState.sales.forEach(v => {
@@ -1395,22 +1395,22 @@ export function saveLocal() {
     exchangeRate: AppState.exchangeRate || 4200,
     plantillas: AppState.plantillas || {}
   };
-  // Disparar sincronizaciÃ³n sin bloquear
+  // Disparar sincronización sin bloquear
   apiSync(syncData, USE_LOCAL_STORAGE_BACKUP);
   update2FABellBadge();
 }
 /**
- * Fase 3.2: Procesador de Cola de SincronizaciÃ³n
+ * Fase 3.2: Procesador de Cola de Sincronización
  * Reintenta enviar datos pendientes si hubo fallos previos.
  */
 async function processSyncQueue() {
   await apiProcessSyncQueue();
 }
 // NOTA: Esta funcionalidad de limpieza es TEMPORAL para fase de desarrollo/pruebas.
-// No se incluirÃ¡ en la versiÃ³n final de producciÃ³n.
+// No se incluirá en la versión final de producción.
 function confirmarLimpiezaDatos() {
   showDeleteConfirmModal(
-    "âš ï¸ ADVERTENCIA CRÃTICA: Â¿EstÃ¡s seguro de que quieres limpiar todos los datos de prueba tanto LOCALES como en la NUBE?\n\nSe borrarÃ¡n permanentemente ventas e inventario en Supabase y el navegador.",
+    "âš ï¸ ADVERTENCIA CRÃTICA: ¿Estás seguro de que quieres limpiar todos los datos de prueba tanto LOCALES como en la NUBE?\n\nSe borrarán permanentemente ventas e inventario en Supabase y el navegador.",
     async () => {
       console.log('--- Iniciando limpieza profunda (LOCAL + CLOUD) ---');
       try {
@@ -1418,7 +1418,7 @@ function confirmarLimpiezaDatos() {
         if (result && result.success) {
           console.log('âœ… Nube saneada exitosamente. Procediendo con limpieza local...');
         } else {
-          throw new Error('El servidor respondiÃ³ pero no confirmÃ³ el Ã©xito.');
+          throw new Error('El servidor respondió pero no confirmó el éxito.');
         }
         AppState.sales = [];
         AppState.inventory = [];
@@ -1439,11 +1439,11 @@ function confirmarLimpiezaDatos() {
         AppState.plantillas = {};
         logEvent('LIMPIEZA TOTAL', 'Se ha realizado una limpieza completa de los datos tanto locales como en la nube.');
         saveLocal();
-        await showPremiumAlert("Limpieza", "Limpieza total completada. La pÃ¡gina se recargarÃ¡ para aplicar los cambios.", "success");
+        await showPremiumAlert("Limpieza", "Limpieza total completada. La página se recargará para aplicar los cambios.", "success");
         location.reload();
       } catch (err) {
-        console.error('âŒ Error crÃ­tico en Hard Reset:', err.message);
-        await showPremiumAlert("Error en Limpieza", "No pudimos limpiar la nube. Por razones de seguridad, no borraremos tus datos locales hasta que la base de datos remota estÃ© saneada.", "error");
+        console.error('âŒ Error crítico en Hard Reset:', err.message);
+        await showPremiumAlert("Error en Limpieza", "No pudimos limpiar la nube. Por razones de seguridad, no borraremos tus datos locales hasta que la base de datos remota esté saneada.", "error");
       }
     }
   );
@@ -1452,13 +1452,13 @@ function loadLocal() {
   const data = storageLoad();
   if (data) {
     AppState.users = data.users || [];
-    // MigraciÃ³n: Asegurar que todos usen .pass en vez de .password
+    // Migración: Asegurar que todos usen .pass en vez de .password
     AppState.users.forEach(u => {
       if (u.password && !u.pass) {
         u.pass = u.password;
         delete u.password;
       }
-      // MigraciÃ³n de nuevos permisos granulares
+      // Migración de nuevos permisos granulares
       if (u.permisos && !u.permisos.acceso_total) {
         if (u.permisos.p_dashboard_ver === undefined) u.permisos.p_dashboard_ver = true;
         if (u.permisos.p_analisis_ver === undefined) u.permisos.p_analisis_ver = true;
@@ -1468,7 +1468,7 @@ function loadLocal() {
     AppState.auditLog = data.auditLog || [];
     AppState.catalog = data.catalog || [];
     // Fase 4.2: Freno a la carga masiva
-    // Solo cargamos las Ãºltimas 1000 ventas para mantener agilidad en memoria
+    // Solo cargamos las últimas 1000 ventas para mantener agilidad en memoria
     AppState.sales = (data.sales || []).slice(-1000);
     // Add _searchIndex to loaded sales
     AppState.sales.forEach(v => {
@@ -1490,7 +1490,7 @@ function loadLocal() {
     AppState.xboxInventory = data.xboxInventory || [];
     AppState.physicalInventory = data.physicalInventory || [];
     AppState.plantillas = data.plantillas || {};
-    // Limpieza automÃ¡tica de datos de prueba antiguos
+    // Limpieza automática de datos de prueba antiguos
     const testIds = ["101", "102", "103", "104", "V-675559"];
     AppState.sales = AppState.sales.filter(v => !testIds.includes(String(v.id)));
   } else {
@@ -1540,13 +1540,13 @@ function loadLocal() {
   }
 }
 /**
- * Fase 4.1: SincronizaciÃ³n Inicial (Stale-While-Revalidate)
+ * Fase 4.1: Sincronización Inicial (Stale-While-Revalidate)
  * Actualiza el AppState con datos frescos de Supabase en segundo plano.
  */
 async function refreshDataFromSupabase() {
   try {
     const { inventoryGames, settings, totalClients } = await apiFetchInitialData();
-    // Actualizar AppState silenciosamente con los datos mÃ¡s recientes
+    // Actualizar AppState silenciosamente con los datos más recientes
     if (inventoryGames && inventoryGames.length > 0) {
       AppState.inventoryGames = inventoryGames;
     }
@@ -1554,18 +1554,18 @@ async function refreshDataFromSupabase() {
       if (settings.exchangeRate) AppState.exchangeRate = settings.exchangeRate.value;
       if (settings.plantillas) AppState.plantillas = settings.plantillas;
     }
-    // AuditorÃ­a Silenciosa (Fase 5.1)
+    // Auditoría Silenciosa (Fase 5.1)
     if (localStorage.getItem('debug_migration') === 'true') {
        const localCount = Object.keys(AppState.clientsListas || {}).length;
        console.log(`%c[AUDIT] Local: ${localCount} | Supabase (Clients): ${totalClients || 0}`, "color: #39d6f9; font-weight: bold;");
     }
-    // Refrescar UI si el usuario ya estÃ¡ dentro
+    // Refrescar UI si el usuario ya está dentro
     if (AppState.currentUser) {
       if (typeof updateDashboard === 'function') updateDashboard();
       if (AppState.activeTab === 'inventario' && typeof renderCuentasPSN === 'function') renderCuentasPSN();
     }
   } catch (err) {
-    console.warn("â³ FallÃ³ el refresco asÃ­ncrono (usando cachÃ© local):", err.message);
+    console.warn("â³ Falló el refresco asíncrono (usando caché local):", err.message);
   }
 }
 document.addEventListener('DOMContentLoaded', () => {
@@ -1626,7 +1626,7 @@ export function calculateBalances() {
   codes.forEach(c => {
     codesUsd += parseFloat(c.precioUsd || 0);
     codesCop += parseInt(c.costoCop || 0);
-    // Solo contar como "Pines ON" si el estado es ON y NO estÃ¡ usado
+    // Solo contar como "Pines ON" si el estado es ON y NO está usado
     if (c.estado === 'ON' && !c.usado) {
       countCodes++;
     }
@@ -1639,7 +1639,7 @@ export function calculateBalances() {
       countPaq++;
     }
   });
-  // Aggregate MembresÃ­as
+  // Aggregate Membresías
   membresias.forEach(m => {
     memUsd += parseFloat(m.costoUsd || 0);
     memCop += parseInt(m.costoCop || 0);
@@ -1678,7 +1678,7 @@ export function calculateBalances() {
   safeUpdate('count-paquetes-text', `${countPaq} Paquetes ON`);
   safeUpdate('inv-membresias-usd', formatUSD(memUsd));
   safeUpdate('inv-membresias-cop', formatCOP(memCop));
-  safeUpdate('count-membresias-text', `${countMem} MembresÃ­as ON`);
+  safeUpdate('count-membresias-text', `${countMem} Membresías ON`);
   // Render Stock Summary List
   renderStockSummary(games.filter(g => g.estado === 'ON'));
   // Update Charts
@@ -1690,7 +1690,7 @@ function renderStockSummary(activeGames) {
   if (!listEl) return;
   const counts = {};
   activeGames.forEach(g => {
-    const title = (g.juego || 'Sin TÃ­tulo').toUpperCase();
+    const title = (g.juego || 'Sin Título').toUpperCase();
     counts[title] = (counts[title] || 0) + 1;
   });
   const sortedTitles = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
@@ -1713,7 +1713,7 @@ function renderStockSummary(activeGames) {
     `;
   }).join('');
 }
-// â”€â”€â”€â”€ GESTIÃ“N DE STOCK IDEAL Y AUDITORÃA â”€â”€â”€â”€
+// -€-€-€-€ GESTIÓN DE STOCK IDEAL Y AUDITORÃA -€-€-€-€
 function openIdealStockModal() {
   const overlay = document.getElementById('idealStockModalOverlay');
   if (!overlay) return;
@@ -1734,14 +1734,14 @@ function renderIdealStockAudit() {
   if (!tbody) return;
   // 1. Calcular Stock Actual (Activo)
   const stockCounts = {};
-  const minPrices = {}; // Para el historial mÃ­nimo histÃ³rico
+  const minPrices = {}; // Para el historial mínimo histórico
   AppState.inventoryGames.forEach(g => {
-    const title = (g.juego || 'Sin TÃ­tulo').toUpperCase();
+    const title = (g.juego || 'Sin Título').toUpperCase();
     // Conteo para Stock Actual (Solo Activos)
     if (g.estado === 'Activo') {
       stockCounts[title] = (stockCounts[title] || 0) + 1;
     }
-    // CÃ¡lculo de precio mÃ­nimo histÃ³rico (Independiente del estado o fecha)
+    // Cálculo de precio mínimo histórico (Independiente del estado o fecha)
     const price = parseFloat(g.costoUsd);
     if (!isNaN(price)) {
       if (!minPrices[title] || price < minPrices[title]) {
@@ -1755,20 +1755,20 @@ function renderIdealStockAudit() {
   let totalCopMonth = 0;
   AppState.inventoryGames.forEach(g => {
     if (g.fecha && g.fecha.startsWith(monthFilter)) {
-      const title = (g.juego || 'Sin TÃ­tulo').toUpperCase();
+      const title = (g.juego || 'Sin Título').toUpperCase();
       purchaseCounts[title] = (purchaseCounts[title] || 0) + 1;
       totalUsdMonth += parseFloat(g.costoUsd || 0);
       totalCopMonth += parseInt(g.costoCop || 0);
     }
   });
-  // Sumar tambiÃ©n CÃ³digos al total del mes
+  // Sumar también Códigos al total del mes
   (AppState.inventoryCodes || []).forEach(c => {
     if (c.fecha && c.fecha.startsWith(monthFilter)) {
       totalUsdMonth += parseFloat(c.precioUsd || 0);
       totalCopMonth += parseInt(c.costoCop || 0);
     }
   });
-  // 3. Unificar todos los tÃ­tulos encontrados
+  // 3. Unificar todos los títulos encontrados
   const allTitles = [...new Set([
     ...Object.keys(stockCounts),
     ...Object.keys(purchaseCounts),
@@ -1802,10 +1802,10 @@ function renderIdealStockAudit() {
       </tr>
     `;
   }).join('');
-  // Agregar fila de inversiÃ³n total del mes al final (premium look)
+  // Agregar fila de inversión total del mes al final (premium look)
   tableHtml += `
     <tr style="background: rgba(57, 214, 249, 0.08); border-top: 1px solid var(--accent-cyan); box-shadow: inset 0 0 10px rgba(57, 214, 249, 0.1);">
-      <td colspan="2" style="padding: 15px; font-weight: 800; color: var(--accent-cyan); letter-spacing: 0.5px;">TOTAL INVERSIÃ“N DEL PERIODO (Juegos + Pines):</td>
+      <td colspan="2" style="padding: 15px; font-weight: 800; color: var(--accent-cyan); letter-spacing: 0.5px;">TOTAL INVERSIÓN DEL PERIODO (Juegos + Pines):</td>
       <td colspan="4" style="padding: 15px; text-align: right; border-bottom: none;">
         <span style="color: #fff; font-weight: 800; font-size: 1rem; margin-right: 20px;">${formatUSD(totalUsdMonth)}</span>
         <span style="color: var(--accent-cyan); font-weight: 800; font-size: 1rem;">${formatCOP(totalCopMonth)}</span>
@@ -1823,7 +1823,7 @@ function downloadAuditExcel() {
   const monthFilter = document.getElementById('auditMonthFilter').value;
   const rows = document.querySelectorAll('#auditTableBody tr');
   if (rows.length === 0) return alert("No hay datos para exportar");
-  let csvContent = "TÃ­tulo del Juego;Stock Ideal;Comprado (Periodo);Compra (HistÃ³rico);Stock Actual;Listado (Por Comprar)\n";
+  let csvContent = "Título del Juego;Stock Ideal;Comprado (Periodo);Compra (Histórico);Stock Actual;Listado (Por Comprar)\n";
   rows.forEach(row => {
     const cells = row.querySelectorAll('td');
     const titulo = cells[0].innerText.replace(/;/g, ',');
@@ -1846,11 +1846,11 @@ function downloadAuditExcel() {
   document.body.removeChild(link);
   showToast("Excel generado correctamente");
 }
-// â”€â”€â”€â”€ MODULO DE GRÃFICAS (Chart.js) â”€â”€â”€â”€
+// -€-€-€-€ MODULO DE GRÃFICAS (Chart.js) -€-€-€-€
 function updateInventoryBarChart(gamesVal, codesVal, paqVal, memVal) {
   const ctx = document.getElementById('inventoryBarChart');
   if (!ctx) return;
-  const labels = ['Juegos', 'CÃ³digos', 'Paquetes', 'MembresÃ­as'];
+  const labels = ['Juegos', 'Códigos', 'Paquetes', 'Membresías'];
   const data = [gamesVal, codesVal, paqVal || 0, memVal || 0];
   const colors = ['#9d00ff', '#ff007a', '#00d4ff', '#f59e0b'];
   if (AppState.charts.inventoryBar) {
@@ -1864,7 +1864,7 @@ function updateInventoryBarChart(gamesVal, codesVal, paqVal, memVal) {
       data: {
         labels,
         datasets: [{
-          label: 'InversiÃ³n (USD)',
+          label: 'Inversión (USD)',
           data,
           backgroundColor: colors,
           borderRadius: 8,
@@ -1907,7 +1907,7 @@ function updateMonthlyInvestmentChart(items) {
       data: {
         labels: months,
         datasets: [{
-          label: 'InversiÃ³n USD',
+          label: 'Inversión USD',
           data: values,
           borderColor: '#00ff88',
           backgroundColor: 'rgba(0, 255, 136, 0.1)',
@@ -2059,9 +2059,9 @@ document.addEventListener('click', function (e) {
     ventaSuggestions.style.display = 'none';
   }
 });
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-/* LÃ“GICA DE AUTOCOMPLETADO (ANÃLISIS -> INVENTARIO) */
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
+/* LÓGICA DE AUTOCOMPLETADO (ANÃLISIS -> INVENTARIO) */
+/* ============================================================ */
 export function handleGameAutocomplete(input) {
   const container = document.getElementById('gameSuggestions');
   const val = input.value.trim().toLowerCase();
@@ -2069,7 +2069,7 @@ export function handleGameAutocomplete(input) {
     container.style.display = 'none';
     return;
   }
-  // Obtener nombres Ãºnicos de AppState.analysis
+  // Obtener nombres únicos de AppState.analysis
   const uniqueNames = [...new Set(AppState.analysis.map(row => row.nombre))].filter(n => n);
   // Filtrar por lo que el usuario escribe
   const matches = uniqueNames.filter(name => name.toLowerCase().includes(val));
@@ -2077,7 +2077,7 @@ export function handleGameAutocomplete(input) {
     container.style.display = 'none';
     return;
   }
-  // Renderizar sugerencias con diseÃ±o premium
+  // Renderizar sugerencias con diseño premium
   container.innerHTML = matches.map(name => `
     <div class="autocomplete-suggestion" onclick="selectGameSuggestion('${name.replace(/'/g, "\\'")}')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-blue)"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></divp>
@@ -2094,9 +2094,9 @@ function selectGameSuggestion(name) {
   // Opcional: enfocar el siguiente campo
   document.getElementById('invJuegoCorreo').focus();
 }
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// MÃ“DULO DE ANALYTICS (Ranking Asesores)
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ==================================================
+// MÓDULO DE ANALYTICS (Ranking Asesores)
+// ==================================================
 function initAnalytics() {
   if (typeof renderRankingAsesores === 'function') {
     renderRankingAsesores();
@@ -2120,12 +2120,12 @@ function renderTopPlataformas() {
     if (v.isPartiallyPaid) return;
     // 1. Intentar obtener el nombre del juego directamente desde el campo 'juego'
     let gameName = (v.juego || '').trim();
-    // 2. Si estÃ¡ vacÃ­o, buscar por inventoryId en inventoryGames (array correcto)
+    // 2. Si está vacío, buscar por inventoryId en inventoryGames (array correcto)
     if (!gameName && v.inventoryId) {
       const invGame = AppState.inventoryGames.find(g => String(g.id) === String(v.inventoryId));
       if (invGame) gameName = invGame.juego || invGame.nombre || '';
     }
-    // 3. Si sigue vacÃ­o, no se puede clasificar
+    // 3. Si sigue vacío, no se puede clasificar
     if (!gameName) return;
     const accountType = (v.tipo_cuenta || v.cuenta || '').toUpperCase();
     if (accountType.includes('PS4')) {
@@ -2146,7 +2146,7 @@ function renderTopPlataformas() {
   const renderRankingList = (container, sortedData, platformColor) => {
     container.innerHTML = '';
     if (sortedData.length === 0) {
-      container.innerHTML = '<div class="stat-item" style="padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;"><p style="color:var(--text-muted); font-size:0.9rem; margin:0; text-align: center;">Sin ventas registradas aÃºn</p></div>';
+      container.innerHTML = '<div class="stat-item" style="padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;"><p style="color:var(--text-muted); font-size:0.9rem; margin:0; text-align: center;">Sin ventas registradas aún</p></div>';
       return;
     }
     const maxVal = sortedData[0][1] || 1;
@@ -2239,7 +2239,7 @@ function renderRankingAsesores() {
       }
     }
   });
-  // Ordenar de mayor a menor segÃºn el mes actual (o el dÃ­a filtrado)
+  // Ordenar de mayor a menor según el mes actual (o el día filtrado)
   const rankingArray = Object.values(ventasActuales).sort((a, b) => b.total - a.total);
   const labels = [];
   const dataActual = [];
@@ -2256,7 +2256,7 @@ function renderRankingAsesores() {
   if (rankingAsesoresChartInstance) {
     rankingAsesoresChartInstance.destroy();
   }
-  const chartLabel = filtroDia ? `Ventas del dÃ­a: ${filtroDia}` : 'Ventas Mes Actual';
+  const chartLabel = filtroDia ? `Ventas del día: ${filtroDia}` : 'Ventas Mes Actual';
   rankingAsesoresChartInstance = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -2329,17 +2329,17 @@ function renderRankingAsesores() {
     }
   });
 }
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
 /* SISTEMA DE LISTAS DE CLIENTES            */
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
 function abrirModalSorteo() { abrirModalCrearLista(); }
 function abrirModalCrearLista() {
-  // Construir el modal dinÃ¡mico premium
+  // Construir el modal dinámico premium
   let overlay = document.getElementById('crearListaOverlay');
   if (overlay) overlay.remove();
   const listas = AppState.listas || [];
   const listaItems = listas.length === 0
-    ? '<p style="color:var(--text-muted);font-size:0.82rem;margin:0;">No hay listas creadas aÃºn.</p>'
+    ? '<p style="color:var(--text-muted);font-size:0.82rem;margin:0;">No hay listas creadas aún.</p>'
     : listas.map(l => `
         <div style="display:flex;align-items:center;justify-content:space-between;
              background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
@@ -2366,7 +2366,7 @@ function abrirModalCrearLista() {
         </div>
         <div>
           <h3 style="margin:0 0 4px;color:#fff;font-size:1.1rem;">Gestionar Listas</h3>
-          <p style="margin:0;color:var(--text-muted);font-size:0.85rem;">Crea listas para organizar tus clientes por categorÃ­a.</p>
+          <p style="margin:0;color:var(--text-muted);font-size:0.85rem;">Crea listas para organizar tus clientes por categoría.</p>
         </div>
       </div>
       <div style="margin-bottom:1rem;">
@@ -2412,7 +2412,7 @@ function confirmarCrearLista() {
   saveLocal();
   logEvent('Analytics: Lista Creada', `Nombre: ${nombre}`);
   showToast(`âœ… Lista "${nombre}" creada`);
-  // Actualizar modal sin cerrarlo para poder crear mÃ¡s
+  // Actualizar modal sin cerrarlo para poder crear más
   abrirModalCrearLista();
   // Re-renderizar tabla historial para que aparezca en el dropdown
   if (window._clientsHistoryStaticData) renderClientsHistoryTable(window._clientsHistoryStaticData);
@@ -2441,7 +2441,7 @@ export function asignarClienteALista(nombreKey, listaId) {
   } else {
     delete AppState.clientsListas[nombreKey];
   }
-  // SincronizaciÃ³n retroactiva: actualizar ventas existentes del cliente
+  // Sincronización retroactiva: actualizar ventas existentes del cliente
   if (AppState.sales && AppState.sales.length > 0) {
     AppState.sales.forEach(v => {
       if ((v.nombre_cliente || '').toLowerCase() === nombreKey) {
@@ -2456,7 +2456,7 @@ function renderClientsHistoryTable(data) {
   if (!tbody) return;
   tbody.innerHTML = '';
   if (data.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 2rem; color: var(--text-muted)">No se encontraron clientes con esos parÃ¡metros.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 2rem; color: var(--text-muted)">No se encontraron clientes con esos parámetros.</td></tr>`;
     return;
   }
   const listas = AppState.listas || [];
@@ -2503,7 +2503,7 @@ function renderClientsHistoryTable(data) {
     tbody.appendChild(tr);
   });
 }
-/* â”€â”€ Tabs Historial Cliente / Listas â”€â”€ */
+/* -€-€ Tabs Historial Cliente / Listas -€-€ */
 let _activeClientTab = 'historial';
 function switchClientTab(tab) {
   _activeClientTab = tab;
@@ -2536,7 +2536,7 @@ function renderListas() {
   const clientsListas = AppState.clientsListas || {};
   const allClients = window._clientsHistoryStaticData || [];
   if (listas.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted)">No hay listas creadas. Usa el botÃ³n <strong>Crear Lista</strong> para empezar.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted)">No hay listas creadas. Usa el botón <strong>Crear Lista</strong> para empezar.</td></tr>';
     return;
   }
   let hasContent = false;
@@ -2563,7 +2563,7 @@ function renderListas() {
     hasContent = true;
     if (clientesEnLista.length === 0) {
       const trEmpty = document.createElement('tr');
-      trEmpty.innerHTML = `<td colspan="9" style="text-align:center;padding:12px;color:var(--text-muted);font-size:0.82rem;font-style:italic;">Sin clientes en esta lista aÃºn.</td>`;
+      trEmpty.innerHTML = `<td colspan="9" style="text-align:center;padding:12px;color:var(--text-muted);font-size:0.82rem;font-style:italic;">Sin clientes en esta lista aún.</td>`;
       tbody.appendChild(trEmpty);
       return;
     }
@@ -2604,7 +2604,7 @@ function guardarLista(nombreKey, valor) {
   saveLocal();
 }
 /**
- * Fase 4.2: PaginaciÃ³n de Clientes
+ * Fase 4.2: Paginación de Clientes
  */
 let _clientsCurrentPage = 0;
 let _clientsTotalPages = 0;
@@ -2614,7 +2614,7 @@ async function fetchClientesPage(page = 0) {
   if (loading) loading.style.display = 'inline-flex';
   try {
     const result = await apiFetchClientes(page, _clientsLimit);
-    // Actualizar estado de paginaciÃ³n
+    // Actualizar estado de paginación
     _clientsCurrentPage = result.page;
     _clientsTotalPages = Math.ceil(result.total / result.limit);
     // Mapear datos de Supabase al formato esperado por la tabla
@@ -2669,11 +2669,11 @@ function filterClients(searchText) {
   });
   renderClientsHistoryTable(filtered);
 }
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ======================================================
 // Logic Moved to ui/inventory.js
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-/* 25. BITÃCORA Y GESTIÃ“N DE USUARIOS      */
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
+/* 25. BITÃCORA Y GESTIÓN DE USUARIOS      */
+/* ============================================================ */
 function switchBitacoraTab(tabName) {
   document.getElementById('btnTabVisorEventos').className = (tabName === 'visorEventos') ? 'btn-primary' : 'btn-secondary';
   document.getElementById('btnTabGestionUsuarios').className = (tabName === 'gestionUsuarios') ? 'btn-primary' : 'btn-secondary';
@@ -2715,7 +2715,7 @@ function renderGestionUsuarios() {
     // Check if total access
     const hasTotal = u.permisos.acceso_total ? '<i data-lucide="shield-alert" class="minimalist-icon" style="color:#ff4757"></i> Total' : 'Restringido';
     const tr = document.createElement('tr');
-    // Si es Super Admin (Cristian), no mostramos acciones segÃºn requerimiento
+    // Si es Super Admin (Cristian), no mostramos acciones según requerimiento
     const accionesHtml = isSuperAdmin ? '' : `
       <div style="display: flex; gap: 8px;">
         <button class="action-btn-premium" onclick="openModalUsuario('${u.email}')" title="Editar">
@@ -2748,7 +2748,7 @@ function openModalUsuario(email = null) {
       document.getElementById('usNombre').value = user.nombre;
       document.getElementById('usEmail').value = user.email;
       document.getElementById('usEmail').disabled = true; // No cambiar correo, usar como ID
-      document.getElementById('usPassword').value = ''; // Ocultar contraseÃ±a por defecto
+      document.getElementById('usPassword').value = ''; // Ocultar contraseña por defecto
       document.getElementById('usPassword').placeholder = 'Dejar en blanco para no cambiar';
       document.getElementById('usPassword').required = false;
       document.getElementById('usRol').value = user.rolBase || 'Asesor Comercial';
@@ -2789,7 +2789,7 @@ function toggleAllPermissions() {
 }
 function updateChecklistFromRole() {
   const isEditing = document.getElementById('usuarioEditEmail').value !== '';
-  if (isEditing) return; // Si estamos editando, respetamos lo que estÃ¡ en la BD
+  if (isEditing) return; // Si estamos editando, respetamos lo que está en la BD
   const rol = document.getElementById('usRol').value;
   document.getElementById('formUsuario').reset();
   document.getElementById('usRol').value = rol; // restore select
@@ -2847,16 +2847,16 @@ function saveUsuario() {
       if (password !== '') {
         AppState.users[userIndex].pass = password; // Only update if typed
       }
-      logEvent('EdiciÃ³n Usuario', `Rol/Permisos modificados para ${email}`);
+      logEvent('Edición Usuario', `Rol/Permisos modificados para ${email}`);
     }
   } else {
     if (!password) {
-      alert("La contraseÃ±a es obligatoria para nuevos usuarios.");
+      alert("La contraseña es obligatoria para nuevos usuarios.");
       return;
     }
     const finalEmail = email.toLowerCase();
     if (AppState.users.find(u => u.email.toLowerCase() === finalEmail)) {
-      alert("El correo ya estÃ¡ en uso por otro usuario.");
+      alert("El correo ya está en uso por otro usuario.");
       return;
     }
     AppState.users.push({
@@ -2867,7 +2867,7 @@ function saveUsuario() {
       permisos: permisos,
       activo: true
     });
-    logEvent('CreaciÃ³n Usuario', `Nuevo usuario registrado: ${email} (${rolBase})`);
+    logEvent('Creación Usuario', `Nuevo usuario registrado: ${email} (${rolBase})`);
   }
   saveLocal();
   renderGestionUsuarios();
@@ -2883,12 +2883,12 @@ function toggleEstadoUsuario(email) {
     user.activo = !user.activo;
     saveLocal();
     renderGestionUsuarios();
-    logEvent(user.activo ? 'ReactivaciÃ³n Usuario' : 'DesactivaciÃ³n Usuario', `Usuario ${email} fue ${user.activo ? 'reactivado' : 'desactivado'}`);
+    logEvent(user.activo ? 'Reactivación Usuario' : 'Desactivación Usuario', `Usuario ${email} fue ${user.activo ? 'reactivado' : 'desactivado'}`);
   }
 }
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
 /* 2FA CODES MANAGEMENT SYSTEM             */
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ============================================================ */
 function open2FAModal(itemId, itemType) {
   const modal = document.getElementById('modal2FAOverlay');
   if (!modal) return;
@@ -2911,7 +2911,7 @@ function render2FACodesList(item, itemId, itemType) {
   const codesRaw = item.cod_2_pasos || item.codigo2fa || '';
   const codes = codesRaw.split('\n').map(x => x.trim()).filter(x => x.length > 0);
   if (codes.length === 0) {
-    listado.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:20px;">No hay cÃ³digos disponibles.</p>';
+    listado.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:20px;">No hay códigos disponibles.</p>';
     closeModal2FA();
     return;
   }
@@ -2921,7 +2921,7 @@ function render2FACodesList(item, itemId, itemType) {
     div.className = 'code-2fa-item';
     div.innerHTML = `
       <div style="display:flex; flex-direction:column;">
-        <span class="code-2fa-label">CÃ³digo de verificaciÃ³n #${index + 1}</span>
+        <span class="code-2fa-label">Código de verificación #${index + 1}</span>
         <span class="code-2fa-value">${code}</span>
       </div>
       <button class="btn-utilizar" onclick="use2FACode('${itemId}', '${itemType}', ${index})">Utilizar</button>
@@ -2939,18 +2939,18 @@ async function use2FACode(itemId, itemType, codeIndex) {
   // Copiar al portapapeles
   try {
     await navigator.clipboard.writeText(codeToUse);
-    if (typeof showToast === 'function') showToast('CÃ³digo copiado al portapapeles', 'success');
+    if (typeof showToast === 'function') showToast('Código copiado al portapapeles', 'success');
   } catch (err) {
     console.error('Error al copiar:', err);
   }
-  // Eliminar cÃ³digo
+  // Eliminar código
   codes.splice(codeIndex, 1);
   const newCodesRaw = codes.join('\n');
   item.codigo2fa = newCodesRaw;
   // Por compatibilidad si existiera la otra
   if (item.cod_2_pasos !== undefined) item.cod_2_pasos = newCodesRaw;
   // Persistir y refrescar
-  logEvent('2FA: CÃ³digo Utilizado', `Item ID: ${itemId} | Tipo: ${itemType} | CÃ³digo: ${codeToUse}`);
+  logEvent('2FA: Código Utilizado', `Item ID: ${itemId} | Tipo: ${itemType} | Código: ${codeToUse}`);
   saveLocal();
   renderCuentasPSN();
   // Actualizar lista en el modal o cerrar si ya no hay
@@ -2964,7 +2964,7 @@ function closeModal2FA() {
   const modal = document.getElementById('modal2FAOverlay');
   if (modal) modal.classList.remove('show');
 }
-/* --- LÃ“GICA DE NOTIFICACIONES 2FA (POCOS CÃ“DIGOS) --- */
+/* --- LÓGICA DE NOTIFICACIONES 2FA (POCOS CÓDIGOS) --- */
 export function update2FABellBadge() {
   const badge = document.getElementById('badge2FANotif');
   if (!badge) return;
@@ -3002,7 +3002,7 @@ function open2FANotifModal() {
   });
   tbody.innerHTML = '';
   if (low2FACuentas.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">No hay cuentas con pocos cÃ³digos.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">No hay cuentas con pocos códigos.</td></tr>';
   } else {
     low2FACuentas.forEach(c => {
       const codesRaw = c.cod_2_pasos || c.codigo2fa || '';
@@ -3019,7 +3019,7 @@ function open2FANotifModal() {
         </td>
         <td style="padding: 12px 10px;">
           <div style="display:flex; gap:5px; justify-content:center;">
-            <button class="action-btn-premium" style="width:32px; height:32px; padding:0; border-radius: 8px; background: rgba(0, 212, 255, 0.1); border: 1px solid rgba(0, 212, 255, 0.2); color: var(--accent-cyan);" onclick="close2FANotifModal(); open2FAModal('${c.id}', '${c._itemType}')" title="Ver/Eliminar cÃ³digos">
+            <button class="action-btn-premium" style="width:32px; height:32px; padding:0; border-radius: 8px; background: rgba(0, 212, 255, 0.1); border: 1px solid rgba(0, 212, 255, 0.2); color: var(--accent-cyan);" onclick="close2FANotifModal(); open2FAModal('${c.id}', '${c._itemType}')" title="Ver/Eliminar códigos">
               <i data-lucide="eye" style="width:16px; height:16px;"></i>
             </button>
           </div>
@@ -3037,11 +3037,11 @@ function close2FANotifModal() {
 }
 // ================================================
 // BRIDGE GLOBAL (FASE 1.2 - REFORZADO)
-// Exponer funciones crÃ­ticas al objeto window para 
+// Exponer funciones críticas al objeto window para 
 // mantener compatibilidad con eventos inline del HTML
 // ================================================
 const GlobalBridge = {
-  // NavegaciÃ³n y SesiÃ³n
+  // Navegación y Sesión
   switchTab,
   doLogin,
   doLogout,
@@ -3061,7 +3061,7 @@ const GlobalBridge = {
   removeVentaCodigoRow,
   removeVentaXboxRow,
   removeVentaPhysicalRow,
-  // Ventas (LÃ³gica y Acciones)
+  // Ventas (Lógica y Acciones)
   saveVentaDataForm,
   anularPedidoCompleto,
   eliminarPedidoCompleto,
@@ -3133,7 +3133,7 @@ const GlobalBridge = {
   saveXboxInventory,
   openModalPhysical,
   savePhysicalInventory,
-  // CatÃ¡logo y Carrito
+  // Catálogo y Carrito
   renderCatalog,
   removeFromCatalog,
   addToCartFromCard,
@@ -3153,11 +3153,11 @@ const GlobalBridge = {
   renderIngresos,
   eliminarIngreso,
   prepararEdicionIngreso,
-  // BitÃ¡cora
+  // Bitácora
   switchBitacoraTab,
   renderBitacoraEventos,
   confirmarLimpiezaDatos,
-  // AnÃ¡lisis de Precios (PS Store)
+  // Análisis de Precios (PS Store)
   updateGlobalTRM,
   editAnalysisImage,
   updateAnalysisData,
@@ -3186,7 +3186,7 @@ const GlobalBridge = {
   guardarPlantilla,
   cargarPlantillaSeleccionada,
   actualizarPanelVariables,
-  // GestiÃ³n de Usuarios y Otros
+  // Gestión de Usuarios y Otros
   openModalUsuario,
   closeModalUsuario,
   saveUsuario,
@@ -3224,6 +3224,6 @@ Object.keys(GlobalBridge).forEach(key => {
     console.warn(`[Bridge Global] Intento de exponer funcin inexistente: ${key}`);
   }
 });
-// TambiÃ©n exponer el objeto 'app' por si se usa esa nomenclatura
+// También exponer el objeto 'app' por si se usa esa nomenclatura
 window.app = GlobalBridge;
 export default GlobalBridge;
