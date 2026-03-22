@@ -7,9 +7,9 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = 3000;
 
-// Configuración Supabase
+// Configuración Supabase (ADMIN PRIVILEGES)
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Middlewares
@@ -162,6 +162,31 @@ app.post('/api/sync', async (req, res) => {
 });
 
 /**
+ * MICRO-PARCHE: HARD RESET CLOUD
+ * Elimina todos los registros de inventario y ventas de Supabase.
+ */
+app.delete('/api/clear-inventory', async (req, res) => {
+    try {
+        console.log('🧹 Iniciando limpieza masiva de datos en Supabase...');
+        
+        // Ejecutamos los deletes con filtro universal (id no nulo) para aniquilar zombis.
+        const [invResult, salesResult] = await Promise.all([
+            supabase.from('inventory_games').delete().not('id', 'is', null),
+            supabase.from('sales').delete().not('id', 'is', null)
+        ]);
+
+        if (invResult.error) throw invResult.error;
+        if (salesResult.error) throw salesResult.error;
+
+        console.log('✅ Nube limpia: Registros de inventario y ventas eliminados.');
+        res.status(200).json({ success: true, message: 'Inventario y ventas eliminados de la nube.' });
+    } catch (error) {
+        console.error('❌ Error al limpiar la nube:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
  * Fase 2.3: Endpoint de Lectura con Paginación
  * Evita cargar los 20,000 clientes de una sola vez.
  */
@@ -249,6 +274,6 @@ app.get('/', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`✅ Cangel ERP V12 Server running at http://localhost:${PORT}`);
+    console.log(`✅ Cangel ERP V13.0 Server running at http://localhost:${PORT}`);
     console.log(`🚀 Supabase Integration Active`);
 });

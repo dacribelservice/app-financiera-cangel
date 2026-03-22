@@ -111,7 +111,7 @@
 
 ## 🛑 PUNTO DE CONTROL (CHECKPOINT ACTUAL)
 
-**Estado:** **FASE 5.1a COMPLETADA** ✅ | Iniciando **Fase 5.1b (UI Ventas)**.
+**Estado:** **FASE 5.1a COMPLETADA** ✅ | Iniciando **Fase 5.1b (UI Ventas)** 🟡.
 **Progreso:**
 - **Refactorización:** `app.js` reducido significativamente (~1400 líneas movidas a `/ui/inventory.js`).
 - **Módulos:** Capas de Utilidades, Estado, Servicios y UI Inventario desacopladas.
@@ -162,6 +162,28 @@
 4. **Verificación:**
    - [x] Ejecutar `npm run test` (49/49 OK).
    - [x] Declarar Fase 5.1a COMPLETADA ✅.
+
+#### **Fase 5.1b: Extracción de UI Ventas (EN PROGRESO 🟡)**
+1. **Preparación de Módulo:**
+   - [x] Crear `ui/sales.js`.
+2. **Extracción (desde app.js):**
+   - [x] Mover Lógica de Renderizado y Métricas (`renderVentas`, `updateVentasMetrics`).
+   - [x] Mover Gestión de Filtros y Búsqueda (`limpiarFiltrosVentas`, `switchVentasMode`, `handleVentasSearchDebounce`).
+   - [x] Mover Gestión de Modales y Filas Dinámicas (Juegos, Paquetes, Membresías, Xbox, Físico, Códigos).
+   - [x] Mover Lógica de Autocompletado (6 tipos de productos + Clientes).
+   - [x] Mover Lógica de Negocio: Guardado (`saveVenta`) y Eliminación (`deleteVenta`).
+   - [x] Mover Invocación de Facturas y Remisiones (`copiarFactura`, `copiarFacturaConfirmacion`, `showFactura`).
+3. **Integración:**
+   - [x] Exportar todas las funciones desde `ui/sales.js`.
+   - [x] Importar en `app.js`.
+   - [x] Eliminar código redundante en `app.js` (COMPLETADA: `showFactura`).
+   - [x] Actualizar `GlobalBridge` en `app.js`.
+   - [x] Corregir exportaciones faltantes en `app.js` (`asignarClienteALista`).
+   - [x] Corregir exportaciones faltantes en `ui/sales.js` (`renderCuentasPSN`).
+   - [x] Eliminar duplicados de funciones PSN en `app.js` (`getGameSlots`).
+4. **Verificación:**
+   - [ ] Ejecutar `npm run test` para validar integridad.
+   - [ ] Declarar Fase 5.1b COMPLETADA.
 
 ---
 

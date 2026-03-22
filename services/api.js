@@ -90,6 +90,21 @@ export async function apiProcessSyncQueue() {
 }
 
 /**
+ * MICRO-PARCHE: HARD RESET CLOUD
+ * Función asíncrona para iniciar el borrado masivo en el servidor.
+ */
+export async function apiClearCloudData() {
+  try {
+    const response = await fetch('/api/clear-inventory', { method: 'DELETE' });
+    if (!response.ok) throw new Error('Error al vaciar la nube');
+    return await response.json();
+  } catch (err) {
+    console.error('Fallo borrar nube:', err);
+    throw err;
+  }
+}
+
+/**
  * 3. CARGA DE DATOS INICIALES (SUPABASE)
  */
 export async function apiFetchInitialData() {

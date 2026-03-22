@@ -122,6 +122,9 @@ describe('Pruebas de UI - Inventario', () => {
       <table id="inventoryGamesTable"><tbody id="inventoryGamesBody"></tbody></table>
       <table id="inventoryPaquetesTable"><tbody id="inventoryPaquetesBody"></tbody></table>
       <table id="inventoryMembresiasTable"><tbody id="inventoryMembresiasBody"></tbody></table>
+      <table id="invCodigosTable"><tbody id="invCodigosBody"></tbody></table>
+      <table id="invXboxTable"><tbody id="invXboxBody"></tbody></table>
+      <table id="invPhysicalTable"><tbody id="invPhysicalBody"></tbody></table>
 
       <!-- KPIs (Necesarios para updateDashboard) -->
       <div id="kpiIngresos"></div>

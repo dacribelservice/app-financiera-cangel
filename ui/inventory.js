@@ -16,9 +16,10 @@ import {
 import { 
   saveLocal, logEvent, renderAnalysisTable, 
   isInventoryLow, calculateBalances, updateDashboard,
-  showDeleteConfirmModal, showToast, update2FABellBadge,
-  renderCuentasPSN, handleGameAutocomplete
+  update2FABellBadge, handleGameAutocomplete
 } from '../app.js';
+import { showDeleteConfirmModal, showToast } from './modals.js';
+import { renderCuentasPSN } from './sales.js';
 
 // --- FUNCIONES DE SOPORTE (SLOTS) ---
 
@@ -238,25 +239,22 @@ export function saveGameInventory() {
     else if (es_ps4 && !es_ps5) tipo_version = "Exclusivo PS4";
   }
 
-  if (editId) {
-    const gameIndex = AppState.inventoryGames.findIndex(g => g.id == editId);
-    if (gameIndex !== -1) {
-      AppState.inventoryGames[gameIndex] = {
-        ...AppState.inventoryGames[gameIndex],
-        juego: nombre, correo, correo_hosting: correoHosting, password_hosting: passHosting, pais, password, fecha, fechaCuenta, codigo2fa, costoUsd, costoCop,
-        es_ps4, es_ps5, tipo_version,
-        cupos_ps4_primaria: es_ps4 ? 2 : 0, cupos_ps4_secundaria: es_ps4 ? 1 : 0, cupos_ps5_primaria: (es_ps5 || es_ps4) ? 2 : 0, cupos_ps5_secundaria: (es_ps5 || es_ps4) ? 1 : 0
-      };
-      logEvent('Inventario Juegos: Edición', `ID: ${editId} | Juego: ${nombre}`);
-    }
+  const finalId = editId || Date.now();
+  const gameIdx = AppState.inventoryGames.findIndex(g => String(g.id) === String(finalId));
+
+  const gameData = {
+    id: finalId, juego: nombre, correo, correo_hosting: correoHosting, password_hosting: passHosting, pais, password, fecha, fechaCuenta, codigo2fa, costoUsd, costoCop, 
+    estado: gameIdx !== -1 ? AppState.inventoryGames[gameIdx].estado : 'OFF',
+    es_ps4, es_ps5, tipo_version,
+    cupos_ps4_primaria: es_ps4 ? 2 : 0, cupos_ps4_secundaria: es_ps4 ? 1 : 0, cupos_ps5_primaria: (es_ps5 || es_ps4) ? 2 : 0, cupos_ps5_secundaria: (es_ps5 || es_ps4) ? 1 : 0
+  };
+
+  if (gameIdx !== -1) {
+    AppState.inventoryGames[gameIdx] = { ...AppState.inventoryGames[gameIdx], ...gameData };
+    logEvent('Inventario Juegos: Edición', `ID: ${finalId} | Juego: ${nombre}`);
   } else {
-    const newJuego = {
-      id: Date.now(), juego: nombre, correo, correo_hosting: correoHosting, password_hosting: passHosting, pais, password, fecha, fechaCuenta, codigo2fa, costoUsd, costoCop, estado: 'OFF',
-      es_ps4, es_ps5, tipo_version,
-      cupos_ps4_primaria: es_ps4 ? 2 : 0, cupos_ps4_secundaria: es_ps4 ? 1 : 0, cupos_ps5_primaria: (es_ps5 || es_ps4) ? 2 : 0, cupos_ps5_secundaria: (es_ps5 || es_ps4) ? 1 : 0
-    };
-    AppState.inventoryGames.push(newJuego);
-    logEvent('Inventario Juegos: Nuevo', `ID: ${newJuego.id} | Juego: ${nombre} (${tipo_version})`);
+    AppState.inventoryGames.push(gameData);
+    logEvent('Inventario Juegos: Nuevo', `ID: ${finalId} | Juego: ${nombre} (${tipo_version})`);
   }
 
   saveLocal();
@@ -326,22 +324,41 @@ export function renderInventoryJuegos() {
     // Simplificado para el ejemplo, pero idealmente recreamos las filas completas
     tr.innerHTML = `
       <td class="row-number">${idx + 1}</td>
-      <td style="color: var(--accent-cyan); font-weight: 700;">#${g.id}</td>
+      <td><span class="id-badge">${g.id.toString().slice(-6)}</span></td>
       <td>${g.fecha || '-'}</td>
-      <td class="fw-bold"><div style="display:flex; align-items:center; gap:6px;">${g.juego} <span style="font-size:0.6rem; color:var(--accent-yellow); border:1px solid; padding:2px 4px; border-radius:4px;">${g.pais || 'USA'}</span></div></td>
-      <td><div>${g.correo}</div><div style="font-size:0.7rem; color:var(--text-muted);">H: ${g.correo_hosting || '-'}</div></td>
-      <td style="text-align:center;"><div class="password-field-premium" onclick="togglePasswordVisibility(this)"><span>${g.password || '-'}</span></div></td>
-      <td style="text-align:center;"><div class="password-field-premium" onclick="togglePasswordVisibility(this)"><span>${g.codigo2fa || '-'}</span></div></td>
-      <td class="text-success">${formatUSD(g.costoUsd)}</td>
-      <td class="text-warning">${formatCOP(g.costoCop)}</td>
+      <td class="fw-bold">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span>${g.juego}</span>
+          <span style="font-size:0.6rem; color:var(--accent-yellow); border:1px solid rgba(255,186,0,0.3); padding:2px 4px; border-radius:4px; background:rgba(255,186,0,0.05);">${g.pais || 'USA'}</span>
+        </div>
+      </td>
+      <td>
+        <div>${g.correo}</div>
+        <div style="font-size:0.7rem; color:var(--text-muted); font-style:italic;">Host: ${g.correo_hosting || '-'}</div>
+      </td>
       <td style="text-align:center;">
-        <label class="premium-switch"><input type="checkbox" ${g.estado === 'ON' ? 'checked' : ''} onchange="toggleGameStatus(${g.id})"><span class="switch-slider"></span></label>
+        <div class="password-field-premium" onclick="togglePasswordVisibility(this)">
+          <span>${g.password || '-'}</span>
+        </div>
+      </td>
+      <td style="text-align:center;">
+        <div class="password-field-premium" onclick="togglePasswordVisibility(this)">
+          <span>${g.codigo2fa || '-'}</span>
+        </div>
+      </td>
+      <td class="text-success" style="font-weight:700;">${formatUSD(g.costoUsd)}</td>
+      <td class="text-warning" style="font-weight:700;">${formatCOP(g.costoCop)}</td>
+      <td style="text-align:center;">
+        <label class="premium-switch">
+          <input type="checkbox" ${g.estado === 'ON' ? 'checked' : ''} onchange="toggleGameStatus('${g.id}')">
+          <span class="switch-slider"></span>
+        </label>
       </td>
       <td>
         <div style="display:flex; gap:8px;">
-          <button class="action-btn-premium view-btn" onclick="openModalHistorialVentas(${g.id})"><i data-lucide="eye"></i></button>
-          <button class="action-btn-premium edit-btn" onclick="editGameInventory(${g.id})"><i data-lucide="edit-3"></i></button>
-          <button class="action-btn-premium delete-btn" onclick="deleteGameInventory(${g.id})"><i data-lucide="trash-2"></i></button>
+          <button class="action-btn-premium view-btn" onclick="openModalHistorialVentas('${g.id}')" title="Ver Historial"><i data-lucide="eye"></i></button>
+          <button class="action-btn-premium edit-btn" onclick="editGameInventory('${g.id}')" title="Editar"><i data-lucide="edit-3"></i></button>
+          <button class="action-btn-premium delete-btn" onclick="deleteGameInventory('${g.id}')" title="Eliminar"><i data-lucide="trash-2"></i></button>
         </div>
       </td>
     `;
@@ -373,8 +390,11 @@ export function saveCodigoInventory() {
 
   const pins = pinsRaw.split('\n').map(p => p.trim()).filter(p => p);
   pins.forEach(pin => {
-    AppState.inventoryCodes.push({
-      id: Date.now() + Math.random(),
+    const newId = Date.now() + Math.random();
+    const existingIdx = (AppState.inventoryCodes || []).findIndex(c => String(c.pin) === String(pin));
+    
+    const codeData = {
+      id: newId,
       tipo: `${valor} USD`,
       valorUsd: valor,
       trm: trm,
@@ -382,7 +402,13 @@ export function saveCodigoInventory() {
       pin: pin,
       fecha: fecha,
       estado: 'ON'
-    });
+    };
+
+    if (existingIdx !== -1) {
+      AppState.inventoryCodes[existingIdx] = codeData;
+    } else {
+      AppState.inventoryCodes.push(codeData);
+    }
   });
 
   logEvent('Inventario Códigos: Nuevo', `Se añadieron ${pins.length} códigos de ${valor} USD`);
@@ -400,7 +426,19 @@ export function renderInventoryCodigos() {
   tbody.innerHTML = codes.length ? '' : '<tr><td colspan="6" style="text-align:center;">Sin códigos en stock.</td></tr>';
   codes.forEach((c, idx) => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${idx + 1}</td><td>${c.fecha}</td><td>${c.tipo}</td><td><code>${c.pin}</code></td><td>${formatCOP(c.costoCop)}</td><td><button class="btn-danger-premium" onclick="deleteCodigo(${c.id})"><i data-lucide="trash-2"></i></button></td>`;
+    tr.innerHTML = `
+      <td class="row-number">${idx + 1}</td>
+      <td><span class="id-badge">${String(c.id).slice(-6)}</span></td>
+      <td>${c.fecha || '-'}</td>
+      <td><span style="background:rgba(255,102,0,0.1); color:#ff6600; padding:2px 8px; border-radius:4px; font-weight:700; font-size:0.75rem; border:1px solid rgba(255,102,0,0.2);">${c.tipo}</span></td>
+      <td><code style="background:rgba(255,255,255,0.05); padding:4px 8px; border-radius:4px; border:1px solid rgba(255,255,255,0.1); font-size:0.85rem; color:var(--accent-cyan);">${c.pin}</code></td>
+      <td class="text-warning" style="font-weight:700;">${formatCOP(c.costoCop)}</td>
+      <td>
+        <button class="action-btn-premium delete-btn" onclick="deleteCodigoInventory('${c.id}')" title="Eliminar">
+          <i data-lucide="trash-2"></i>
+        </button>
+      </td>
+    `;
     tbody.appendChild(tr);
   });
   if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -443,7 +481,32 @@ export function saveXboxInventory() {
 export function renderInventoryXbox() {
   const tbody = document.getElementById('invXboxBody');
   if (!tbody) return;
-  tbody.innerHTML = (AppState.xboxInventory || []).map((x, i) => `<tr><td>${i+1}</td><td>${x.detalle}</td><td>${x.correo}</td><td>${formatCOP(x.costoCop)}</td><td>${x.estado}</td></tr>`).join('');
+  const xboxItems = AppState.xboxInventory || [];
+  if (!xboxItems.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--text-muted);">Sin stock de Xbox.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = '';
+  xboxItems.forEach((x, i) => {
+    const tr = document.createElement('tr');
+    tr.className = x.estado === 'ON' ? 'row-active' : 'row-used';
+    tr.innerHTML = `
+      <td class="row-number">${i + 1}</td>
+      <td><span class="id-badge">${String(x.id).slice(-6)}</span></td>
+      <td>${x.fecha || '-'}</td>
+      <td class="fw-bold">${x.detalle}</td>
+      <td style="color:var(--accent-cyan);">${x.correo}</td>
+      <td class="text-warning" style="font-weight:700;">${formatCOP(x.costoCop)}</td>
+      <td>
+        <div style="display:flex; gap:8px;">
+          <button class="action-btn-premium edit-btn" onclick="openModalXbox('${x.id}')" title="Editar"><i data-lucide="edit-3"></i></button>
+          <button class="action-btn-premium delete-btn" onclick="deleteXboxInventory('${x.id}')" title="Eliminar"><i data-lucide="trash-2"></i></button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 export function openModalPhysical(id = null) {
@@ -451,15 +514,23 @@ export function openModalPhysical(id = null) {
 }
 
 export function savePhysicalInventory() {
+  const idToSave = Date.now();
   const data = {
-    id: Date.now(),
+    id: idToSave,
     fecha: document.getElementById('physicalFormFecha').value,
     detalle: document.getElementById('physicalFormDetalle').value,
     serial: document.getElementById('physicalFormSerial').value,
     costoCop: parseFloat(document.getElementById('physicalFormCostoCop').value) || 0,
     estado: document.getElementById('physicalFormEstado').value
   };
-  AppState.physicalInventory.push(data);
+
+  const idx = (AppState.physicalInventory || []).findIndex(p => String(p.serial) === String(data.serial));
+  if (idx !== -1) {
+    AppState.physicalInventory[idx] = { ...AppState.physicalInventory[idx], ...data, id: AppState.physicalInventory[idx].id };
+  } else {
+    AppState.physicalInventory.push(data);
+  }
+
   saveLocal();
   renderInventoryPhysical();
   document.getElementById('modalPhysicalInventory').classList.remove('show');
@@ -468,7 +539,30 @@ export function savePhysicalInventory() {
 export function renderInventoryPhysical() {
   const tbody = document.getElementById('invPhysicalBody');
   if (!tbody) return;
-  tbody.innerHTML = (AppState.physicalInventory || []).map((p, i) => `<tr><td>${i+1}</td><td>${p.detalle}</td><td>${p.serial}</td><td>${formatCOP(p.costoCop)}</td><td>${p.estado}</td></tr>`).join('');
+  const physItems = AppState.physicalInventory || [];
+  if (!physItems.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">Sin inventario físico.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = '';
+  physItems.forEach((p, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="row-number">${i + 1}</td>
+      <td><span class="id-badge">${String(p.id).slice(-6)}</span></td>
+      <td>${p.fecha || '-'}</td>
+      <td class="fw-bold">${p.detalle}</td>
+      <td style="font-family:monospace; color:var(--text-muted);">${p.serial || '-'}</td>
+      <td class="text-warning" style="font-weight:700;">${formatCOP(p.costoCop)}</td>
+      <td>
+        <button class="action-btn-premium delete-btn" onclick="deletePhysicalInventory('${p.id}')" title="Eliminar">
+          <i data-lucide="trash-2"></i>
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 // --- MÓDULO: PAQUETES / MEMBRESÍAS ---
@@ -558,23 +652,21 @@ export function savePaqueteInventory() {
   const cupos_ps5_primaria = es_ps5 ? 2 : 0;
   const cupos_ps5_secundaria = es_ps5 ? 1 : 0;
 
-  if (editId) {
-    const idx = AppState.paquetes.findIndex(p => p.id == editId);
-    if (idx !== -1) {
-      AppState.paquetes[idx] = {
-        ...AppState.paquetes[idx],
-        nombre, correo, correo_hosting: correoHosting, password_hosting: passHosting, password, codigo2fa, fecha, fechaCuenta, costoUsd, trm, costoCop, pais, juegos,
-        es_ps4, es_ps5, tipo_version, cupos_ps4_primaria, cupos_ps4_secundaria, cupos_ps5_primaria, cupos_ps5_secundaria
-      };
-      logEvent('Inventario Paquetes: Edición', `ID: ${editId} | Paquete: ${nombre}`);
-    }
+  const finalId = editId || Date.now();
+  const pIdx = AppState.paquetes.findIndex(p => String(p.id) === String(finalId));
+
+  const paqueteData = {
+    id: finalId, nombre, correo, correo_hosting: correoHosting, password_hosting: passHosting, password, codigo2fa, fecha, fechaCuenta, costoUsd, trm, costoCop, pais, juegos, 
+    estado: pIdx !== -1 ? AppState.paquetes[pIdx].estado : 'OFF',
+    es_ps4, es_ps5, tipo_version, cupos_ps4_primaria, cupos_ps4_secundaria, cupos_ps5_primaria, cupos_ps5_secundaria
+  };
+
+  if (pIdx !== -1) {
+    AppState.paquetes[pIdx] = { ...AppState.paquetes[pIdx], ...paqueteData };
+    logEvent('Inventario Paquetes: Edición', `ID: ${finalId} | Paquete: ${nombre}`);
   } else {
-    const newId = Date.now();
-    AppState.paquetes.push({
-      id: newId, nombre, correo, correo_hosting: correoHosting, password_hosting: passHosting, password, codigo2fa, fecha, fechaCuenta, costoUsd, trm, costoCop, pais, juegos, estado: 'OFF',
-      es_ps4, es_ps5, tipo_version, cupos_ps4_primaria, cupos_ps4_secundaria, cupos_ps5_primaria, cupos_ps5_secundaria
-    });
-    logEvent('Inventario Paquetes: Nuevo', `ID: ${newId} | Paquete: ${nombre}`);
+    AppState.paquetes.push(paqueteData);
+    logEvent('Inventario Paquetes: Nuevo', `ID: ${finalId} | Paquete: ${nombre}`);
   }
 
   closeModalPaquete();
@@ -608,17 +700,22 @@ export function renderInventoryPaquetes() {
     const tr = document.createElement('tr');
     tr.className = isON ? 'row-active' : 'row-used';
     tr.innerHTML = `
-      <td class="row-number">${idx+1}</td>
-      <td style="color: var(--accent-cyan); font-weight:700;">#${p.id}</td>
+      <td class="row-number">${idx + 1}</td>
+      <td><span class="id-badge">${p.id.toString().slice(-6)}</span></td>
       <td>${p.fecha || '-'}</td>
-      <td class="fw-bold">${p.nombre}</td>
-      <td>${p.correo}</td>
+      <td class="fw-bold"><div style="display:flex; align-items:center; gap:6px;">${p.nombre} <span style="font-size:0.6rem; color:var(--accent-cyan); border:1px solid rgba(0,224,255,0.3); padding:2px 4px; border-radius:4px; background:rgba(0,224,255,0.05);">${p.pais || 'USA'}</span></div></td>
+      <td style="color:var(--text-muted);">${p.correo}</td>
       <td style="text-align:center;"><div class="password-field-premium" onclick="togglePasswordVisibility(this)"><span>${p.password || '-'}</span></div></td>
       <td style="text-align:center;"><div class="password-field-premium" onclick="togglePasswordVisibility(this)"><span>${p.codigo2fa || '-'}</span></div></td>
-      <td class="text-success">${formatUSD(p.costoUsd)}</td>
-      <td class="text-warning">${formatCOP(p.costoCop)}</td>
+      <td class="text-success" style="font-weight:700;">${formatUSD(p.costoUsd)}</td>
+      <td class="text-warning" style="font-weight:700;">${formatCOP(p.costoCop)}</td>
       <td style="text-align:center;"><label class="premium-switch"><input type="checkbox" ${isON ? 'checked' : ''} onchange="togglePaqueteStatus('${p.id}')"><span class="switch-slider"></span></label></td>
-      <td><button class="action-btn-premium edit-btn" onclick="openModalPaquete('${p.id}')"><i data-lucide="edit-3"></i></button></td>
+      <td>
+        <div style="display:flex; gap:8px;">
+          <button class="action-btn-premium edit-btn" onclick="openModalPaquete('${p.id}')" title="Editar"><i data-lucide="edit-3"></i></button>
+          <button class="action-btn-premium delete-btn" onclick="deletePaquete('${p.id}')" title="Eliminar"><i data-lucide="trash-2"></i></button>
+        </div>
+      </td>
     `;
     tbody.appendChild(tr);
   });
@@ -627,9 +724,9 @@ export function renderInventoryPaquetes() {
 
 export function deletePaquete(id) {
   showDeleteConfirmModal('¿Eliminar este paquete?', () => {
-    const pToDelete = AppState.paquetes.find(p => p.id === id);
+    const pToDelete = AppState.paquetes.find(p => String(p.id) === String(id));
     if (pToDelete) logEvent('Inventario Paquetes: Eliminado', `Se eliminó el paquete: ${pToDelete.nombre}`);
-    AppState.paquetes = AppState.paquetes.filter(p => p.id !== id);
+    AppState.paquetes = AppState.paquetes.filter(p => String(p.id) !== String(id));
     renderInventoryPaquetes();
     calculateBalances();
     saveLocal();
@@ -719,23 +816,21 @@ export function saveMembresiaInventory() {
   const es_ps4 = true, es_ps5 = true, tipo_version = "Cross-Gen";
   const cupos_ps4_primaria = 2, cupos_ps4_secundaria = 1, cupos_ps5_primaria = 2, cupos_ps5_secundaria = 1;
 
-  if (editId) {
-    const idx = AppState.membresias.findIndex(m => m.id == editId);
-    if (idx !== -1) {
-      AppState.membresias[idx] = {
-        ...AppState.membresias[idx],
-        tipo, correo, correo_hosting: correoHosting, password_hosting: passHosting, password, codigo2fa, fecha, fechaCuenta, costoUsd, trm, costoCop, pais,
-        es_ps4, es_ps5, tipo_version, cupos_ps4_primaria, cupos_ps4_secundaria, cupos_ps5_primaria, cupos_ps5_secundaria
-      };
-      logEvent('Inventario Membresías: Edición', `ID: ${editId} | Tipo: ${tipo}`);
-    }
+  const finalId = editId || Date.now();
+  const mIdx = AppState.membresias.findIndex(m => String(m.id) === String(finalId));
+
+  const membresiaData = {
+    id: finalId, tipo, correo, correo_hosting: correoHosting, password_hosting: passHosting, password, codigo2fa, fecha, fechaCuenta, costoUsd, trm, costoCop, pais, 
+    estado: mIdx !== -1 ? AppState.membresias[mIdx].estado : 'OFF',
+    es_ps4, es_ps5, tipo_version, cupos_ps4_primaria, cupos_ps4_secundaria, cupos_ps5_primaria, cupos_ps5_secundaria
+  };
+
+  if (mIdx !== -1) {
+    AppState.membresias[mIdx] = { ...AppState.membresias[mIdx], ...membresiaData };
+    logEvent('Inventario Membresías: Edición', `ID: ${finalId} | Tipo: ${tipo}`);
   } else {
-    const newId = Date.now();
-    AppState.membresias.push({
-      id: newId, tipo, correo, correo_hosting: correoHosting, password_hosting: passHosting, password, codigo2fa, fecha, fechaCuenta, costoUsd, trm, costoCop, pais, estado: 'OFF',
-      es_ps4, es_ps5, tipo_version, cupos_ps4_primaria, cupos_ps4_secundaria, cupos_ps5_primaria, cupos_ps5_secundaria
-    });
-    logEvent('Inventario Membresías: Nueva', `ID: ${newId} | Tipo: ${tipo}`);
+    AppState.membresias.push(membresiaData);
+    logEvent('Inventario Membresías: Nueva', `ID: ${finalId} | Tipo: ${tipo}`);
   }
 
   closeModalMembresia();
@@ -766,17 +861,27 @@ export function renderInventoryMembresias() {
     const tr = document.createElement('tr');
     tr.className = isON ? 'row-active' : 'row-used';
     tr.innerHTML = `
-      <td class="row-number">${idx+1}</td>
-      <td style="color: var(--accent-cyan); font-weight: 700;">#${m.id}</td>
+      <td class="row-number">${idx + 1}</td>
+      <td><span class="id-badge">${m.id.toString().slice(-6)}</span></td>
       <td>${m.fecha || '-'}</td>
-      <td class="fw-bold"><span style="background:rgba(0,102,255,0.1); padding:2px 8px; border-radius:4px;">${m.tipo}</span> <span style="font-size:0.6rem; border:1px solid; padding:2px 4px; border-radius:4px;">${m.pais || 'USA'}</span></td>
-      <td>${m.correo}</td>
+      <td class="fw-bold">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="background:rgba(0,102,255,0.1); color:#0066ff; padding:2px 8px; border-radius:4px; border:1px solid rgba(0,102,255,0.2); font-size:0.8rem;">${m.tipo}</span>
+          <span style="font-size:0.6rem; color:var(--accent-yellow); border:1px solid rgba(255,186,0,0.3); padding:2px 4px; border-radius:4px; background:rgba(255,186,0,0.05);">${m.pais || 'USA'}</span>
+        </div>
+      </td>
+      <td style="color:var(--text-muted);">${m.correo}</td>
       <td style="text-align:center;"><div class="password-field-premium" onclick="togglePasswordVisibility(this)"><span>${m.password || '-'}</span></div></td>
       <td style="text-align:center;"><div class="password-field-premium" onclick="togglePasswordVisibility(this)"><span>${m.codigo2fa || '-'}</span></div></td>
-      <td class="text-success">${formatUSD(m.costoUsd)}</td>
-      <td class="text-warning">${formatCOP(m.costoCop)}</td>
-      <td style="text-align:center;"><label class="premium-switch"><input type="checkbox" ${isON ? 'checked' : ''} onchange="toggleMembresiaStatus(${m.id})"><span class="switch-slider"></span></label></td>
-      <td><button class="action-btn-premium edit-btn" onclick="openModalMembresia(${m.id})"><i data-lucide="edit-3"></i></button></td>
+      <td class="text-success" style="font-weight:700;">${formatUSD(m.costoUsd)}</td>
+      <td class="text-warning" style="font-weight:700;">${formatCOP(m.costoCop)}</td>
+      <td style="text-align:center;"><label class="premium-switch"><input type="checkbox" ${isON ? 'checked' : ''} onchange="toggleMembresiaStatus('${m.id}')"><span class="switch-slider"></span></label></td>
+      <td>
+        <div style="display:flex; gap:8px;">
+          <button class="action-btn-premium edit-btn" onclick="openModalMembresia('${m.id}')" title="Editar"><i data-lucide="edit-3"></i></button>
+          <button class="action-btn-premium delete-btn" onclick="deleteMembresia('${m.id}')" title="Eliminar"><i data-lucide="trash-2"></i></button>
+        </div>
+      </td>
     `;
     tbody.appendChild(tr);
   });
@@ -785,9 +890,9 @@ export function renderInventoryMembresias() {
 
 export function deleteMembresia(id) {
   showDeleteConfirmModal('¿Eliminar esta membresía?', () => {
-    const mToDelete = AppState.membresias.find(m => m.id === id);
+    const mToDelete = AppState.membresias.find(m => String(m.id) === String(id));
     if (mToDelete) logEvent('Inventario Membresías: Eliminada', `Se eliminó la membresía: ${mToDelete.tipo}`);
-    AppState.membresias = AppState.membresias.filter(m => m.id !== id);
+    AppState.membresias = AppState.membresias.filter(m => String(m.id) !== String(id));
     renderInventoryMembresias();
     calculateBalances();
     saveLocal();
@@ -795,14 +900,50 @@ export function deleteMembresia(id) {
 }
 
 export function toggleMembresiaStatus(id) {
-  const m = AppState.membresias.find(x => x.id === id);
+  const m = AppState.membresias.find(x => String(x.id) === String(id));
   if (m) {
     m.estado = m.estado === 'ON' ? 'OFF' : 'ON';
-    logEvent('Inventario Membresías: Estado', `ID: ${id} | Tipo: ${m.tipo} -> ${m.estado}`);
+    logEvent('Inventario Membresías: Estado', `ID: ${id} | Membresía: ${m.tipo} -> ${m.estado}`);
+    saveLocal();
     renderInventoryMembresias();
     calculateBalances();
-    saveLocal();
   }
+}
+
+// --- UTILS UI ---
+
+export function togglePasswordVisibility(el) {
+  if (el) el.classList.toggle('active');
+}
+
+export function deleteCodigoInventory(id) {
+  showDeleteConfirmModal("¿Estás seguro de que deseas eliminar permanentemente este código?", () => {
+    AppState.inventoryCodes = (AppState.inventoryCodes || []).filter(c => String(c.id) !== String(id));
+    saveLocal();
+    renderInventoryCodigos();
+    calculateBalances();
+    showToast("Código eliminado", "info");
+  });
+}
+
+export function deleteXboxInventory(id) {
+  showDeleteConfirmModal("¿Eliminar este registro de Xbox?", () => {
+    AppState.xboxInventory = (AppState.xboxInventory || []).filter(x => String(x.id) !== String(id));
+    saveLocal();
+    renderInventoryXbox();
+    calculateBalances();
+    showToast("Registro de Xbox eliminado", "info");
+  });
+}
+
+export function deletePhysicalInventory(id) {
+  showDeleteConfirmModal("¿Eliminar este registro de inventario físico?", () => {
+    AppState.physicalInventory = (AppState.physicalInventory || []).filter(p => String(p.id) !== String(id));
+    saveLocal();
+    renderInventoryPhysical();
+    calculateBalances();
+    showToast("Registro físico eliminado", "info");
+  });
 }
 
 export function filterInventoryMembresias() {
