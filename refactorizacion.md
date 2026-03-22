@@ -24,11 +24,12 @@
 
 ### 🔴 FASE 5: UI Y LÓGICA DE NEGOCIO
 - [x] Fase 5.1a: Crear `ui/inventory.js`. Extraer funciones de renderizado y gestión de Inventario (Juegos, Códigos, Paquetes, Membresías, Xbox, Físico).
-- [x] Fase 5.1b: Crear `ui/sales.js`. Extraer lógica de Ventas y Facturación (COMPLETADA).
-- [ ] Fase 5.1c: Crear `ui/clients.js`. Extraer lógica de Clientes y CRM (PRÓXIMO PASO).
+- [x] Fase 5.1b: Módulo de Ventas & Facturación (`ui/sales.js`).
+- [x] Fase 5.1c: Módulo de Clientes & CRM (`ui/clients.js`).
+- [x] Fase 5.1d: Módulo de Analytics & Gráficas (`ui/analytics.js`). (Extracto completo de rankings y Chart.js)
 
 ### 🟣 FASE 6: ORQUESTACIÓN FINAL
-- [ ] Fase 6.1: Limpiar `app.js` para que actúe EXCLUSIVAMENTE como el Entry Point principal.
+- [x] Fase 6.1: Limpiar `app.js` para que actúe EXCLUSIVAMENTE como el Entry Point principal. (EN PROGRESO)
 
 ---
 
@@ -169,9 +170,10 @@
 - [x] **Estabilidad:** Tests 52/52 pasando exitosamente.
 - [x] **Saneamiento:** Limpieza de codificación UTF-8 y bordes decorativos.
 
-#### **Fase 5.1c: Crear ui/clients.js (EN PROGRESO 🟡)**
-- [x] **Parte 1: Extracción de render de clientes:** Se movieron `fetchClientesPage`, `renderClientsHistoryTable`, `renderListas` y filtrado a `ui/clients.js`. Se eliminaron duplicados en `app.js`.
-- [ ] **Parte 2: Gestión y CRUD:** Extraer `eliminarListaNombrada`, modales de cliente y lógica de edición.
+#### **Fase 5.1c: Crear ui/clients.js (COMPLETADA ✅)**
+- [x] **Parte 1: Extracción de render de clientes:** Se movieron `fetchClientesPage`, `renderClientsHistoryTable`, `renderListas` y filtrado a `ui/clients.js`.
+- [x] **Parte 2: Gestión y CRUD:** Se consolidó la lógica de listas y asignación.
+- [x] **Incidente #13:** Modales de Xbox/Físico corregidos y vinculados al Bridge.
 
 ---
 
