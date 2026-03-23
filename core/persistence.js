@@ -1,0 +1,200 @@
+import { AppState } from './store.js';
+import { 
+  storageSave, storageLoad, 
+  apiSync, apiProcessSyncQueue, 
+  apiFetchInitialData 
+} from '../services/api.js';
+import { update2FABellBadge } from '../ui/users.js';
+import { updateDashboard } from '../ui/dashboard.js';
+import { renderCuentasPSN } from '../ui/sales.js';
+import { sanitizeInventoryDuplicates } from '../utils/sanitizer.js';
+
+/**
+ * Fase 7.1: Módulo de Persistencia y Sistema de Sincronización (Core)
+ */
+
+const USE_LOCAL_STORAGE_BACKUP = false; // Feature Flag: Cambiar a true si hay fallos en Supabase
+
+/**
+ * Persiste el estado actual en el almacenamiento local y dispara la sincronización cloud
+ */
+export function saveLocal() {
+  // 1. Persistencia síncrona en localStorage via Service
+  storageSave(AppState);
+
+  // 2. Sincronización asíncrona con Supabase (Shadow Writing) via Service
+  const uniqueClients = {};
+  if (Array.isArray(AppState.sales)) {
+    AppState.sales.forEach(v => {
+      if (v.cedula && !uniqueClients[v.cedula]) {
+        uniqueClients[v.cedula] = {
+          cedula: v.cedula,
+          nombre: v.nombre_cliente || v.cliente,
+          celular: v.celular,
+          email: v.correo || v.email,
+          ciudad: v.ciudad,
+          lista_id: (AppState.clientsListas || {})[(v.nombre_cliente || '').toLowerCase()] || v.lista || null
+        };
+      }
+    });
+  }
+
+  const syncData = {
+    clients: Object.values(uniqueClients),
+    sales: AppState.sales || [],
+    inventoryGames: AppState.inventoryGames || [],
+    exchangeRate: AppState.exchangeRate || 4200,
+    plantillas: AppState.plantillas || {}
+  };
+
+  // Disparar sincronización sin bloquear
+  apiSync(syncData, USE_LOCAL_STORAGE_BACKUP);
+  update2FABellBadge();
+}
+
+/**
+ * Carga el estado inicial desde el almacenamiento local
+ */
+export function loadLocal() {
+  const data = storageLoad();
+  if (data) {
+    AppState.users = data.users || [];
+    
+    // Migración: Asegurar que todos usen .pass en vez de .password
+    AppState.users.forEach(u => {
+      if (u.password && !u.pass) {
+        u.pass = u.password;
+        delete u.password;
+      }
+      // Migración de nuevos permisos granulares
+      if (u.permisos && !u.permisos.acceso_total) {
+        if (u.permisos.p_dashboard_ver === undefined) u.permisos.p_dashboard_ver = true;
+        if (u.permisos.p_analisis_ver === undefined) u.permisos.p_analisis_ver = true;
+        if (u.permisos.p_catalogo_ver === undefined) u.permisos.p_catalogo_ver = true;
+      }
+    });
+
+    AppState.auditLog = data.auditLog || [];
+    AppState.catalog = data.catalog || [];
+    
+    // Fase 4.2: Freno a la carga masiva
+    // Solo cargamos las últimas 1000 ventas para mantener agilidad en memoria
+    AppState.sales = (data.sales || []).slice(-1000);
+    
+    // Add _searchIndex to loaded sales
+    AppState.sales.forEach(v => {
+      if (!v._searchIndex) {
+        v._searchIndex = `${(v.cliente || '')} ${(v.nombre_cliente || '')} ${(v.cedula || '')} ${(v.celular || '')}`.toLowerCase();
+      }
+    });
+
+    AppState.inventoryGames = sanitizeInventoryDuplicates(data.inventoryGames || []);
+    storageSave(AppState); // Forzar guardado limpio permanentemente
+    
+    AppState.inventoryCodes = data.inventoryCodes || [];
+    AppState.paquetes = data.paquetes || [];
+    AppState.membresias = data.membresias || [];
+    AppState.expenses = data.expenses || [];
+    AppState.incomeExtra = data.incomeExtra || [];
+    AppState.analysis = data.analysis || [];
+    AppState.idealStock = data.idealStock || {};
+    AppState.clientsListas = data.clientsListas || {};
+    AppState.listas = data.listas || [];
+    AppState.xboxInventory = data.xboxInventory || [];
+    AppState.physicalInventory = data.physicalInventory || [];
+    AppState.plantillas = data.plantillas || {};
+
+    // Limpieza automática de datos de prueba antiguos
+    const testIds = ["101", "102", "103", "104", "V-675559"];
+    AppState.sales = AppState.sales.filter(v => !testIds.includes(String(v.id)));
+  } else {
+    // Datos iniciales demo premium
+    AppState.users = [];
+    AppState.auditLog = [];
+    AppState.catalog = [
+      { id: 1, nombre: "GOD OF WAR RAGNARÖK", precio_ps4: 39.99, precio_ps5: 69.99, image: "https://image.api.playstation.com/vulcan/ap/rnd/202207/1210/4E9HIn9i9n9l9h9e9b9v9.png" },
+      { id: 2, nombre: "ELDEN RING", precio_ps4: 49.99, precio_ps5: 59.99, image: "https://image.api.playstation.com/vulcan/ap/rnd/202110/2000/76c4a6b1007fd87a.png" },
+      { id: 3, nombre: "SPIDER-MAN 2", precio_ps4: 59.99, precio_ps5: 69.99, image: "https://image.api.playstation.com/vulcan/ap/rnd/202306/1219/602aa422de63443db4c8375e533b664d.png" }
+    ];
+    AppState.sales = [];
+    AppState.inventoryGames = [];
+    AppState.inventoryCodes = [];
+    AppState.paquetes = [];
+    AppState.membresias = [];
+  }
+
+  // --- ASEGURAR SUPER ADMIN (CRISTIAN) ---
+  if (!AppState.users) AppState.users = [];
+  const superAdminExists = AppState.users.find(u => u.email === 'cangel.games.soporte@gmail.com');
+  if (!superAdminExists) {
+    AppState.users.push({
+      id: 'user-super-admin',
+      nombre: 'Cristian (Admin)',
+      email: 'cangel.games.soporte@gmail.com',
+      pass: 'C@ng3lg@m3s',
+      rolBase: 'Administrador Principal',
+      permisos: { acceso_total: true },
+      activo: true,
+      inmutable: true
+    });
+    // Forzamos guardar si se acaba de crear
+    setTimeout(() => { saveLocal(); }, 100);
+  }
+
+  if (!AppState.auditLog) AppState.auditLog = [];
+
+  // --- AUTO-FILL REMEMBERED DATA ---
+  const remembered = localStorage.getItem('cangel_remembered');
+  if (remembered) {
+    try {
+      const { email, pass } = JSON.parse(remembered);
+      const loginName = document.getElementById('loginName');
+      const loginPass = document.getElementById('loginPass');
+      const rememberMe = document.getElementById('rememberMe');
+      
+      if (loginName) loginName.value = email;
+      if (loginPass) loginPass.value = pass;
+      if (rememberMe) rememberMe.checked = true;
+    } catch (e) {
+      console.error("Error loading remembered login:", e);
+    }
+  }
+}
+
+/**
+ * Procesa la cola de sincronización pendiente
+ */
+export async function processSyncQueue() {
+  await apiProcessSyncQueue();
+}
+
+/**
+ * Actualiza el AppState con datos frescos de Supabase en segundo plano
+ */
+export async function refreshDataFromSupabase() {
+  try {
+    const { inventoryGames, settings, totalClients } = await apiFetchInitialData();
+    // Actualizar AppState silenciosamente con los datos más recientes
+    if (inventoryGames && inventoryGames.length > 0) {
+      AppState.inventoryGames = inventoryGames;
+    }
+    if (settings) {
+      if (settings.exchangeRate) AppState.exchangeRate = settings.exchangeRate.value;
+      if (settings.plantillas) AppState.plantillas = settings.plantillas;
+    }
+    
+    // Auditoría Silenciosa (Fase 5.1)
+    if (localStorage.getItem('debug_migration') === 'true') {
+       const localCount = Object.keys(AppState.clientsListas || {}).length;
+       console.log(`%c[AUDIT] Local: ${localCount} | Supabase (Clients): ${totalClients || 0}`, "color: #39d6f9; font-weight: bold;");
+    }
+
+    // Refrescar UI si el usuario ya está dentro
+    if (AppState.currentUser) {
+      if (typeof updateDashboard === 'function') updateDashboard();
+      if (AppState.activeTab === 'inventario' && typeof renderCuentasPSN === 'function') renderCuentasPSN();
+    }
+  } catch (err) {
+    console.warn("⏳ Falló el refresco asíncrono (usando caché local):", err.message);
+  }
+}

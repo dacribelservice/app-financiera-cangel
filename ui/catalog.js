@@ -4,7 +4,7 @@
 import { AppState } from '../core/store.js';
 import { getColombiaTime } from '../utils/formatters.js';
 import { showPremiumAlert, showDeleteConfirmModal, showToast } from './modals.js';
-import { saveLocal } from '../app.js';
+import { saveLocal } from '../core/persistence.js';
 
 /**
  * Renderiza el catálogo de productos (SPA)

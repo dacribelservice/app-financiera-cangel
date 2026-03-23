@@ -1,4 +1,4 @@
-import { saveLocal } from '../app.js';
+import { saveLocal } from '../core/persistence.js';
 import { logEvent } from './bitacora.js';
 import { updateDashboard } from './dashboard.js';
 import { AppState } from '../core/store.js';

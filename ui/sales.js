@@ -4,10 +4,9 @@ import { hasInventoryAvailability as val_hasInventoryAvailability } from '../uti
 import {
   getPaqueteSlots, getMembresiaSlots, renderInventoryJuegos
 } from './inventory.js';
-import {
-  saveLocal, updateDashboard,
-  asignarClienteALista
-} from '../app.js';
+import { saveLocal } from '../core/persistence.js';
+import { updateDashboard } from './dashboard.js';
+import { asignarClienteALista } from './clients.js';
 import { logEvent } from './bitacora.js';
 import {
   showDeleteConfirmModal, showToast, showPremiumAlert, showPremiumPrompt

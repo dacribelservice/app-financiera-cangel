@@ -2,7 +2,7 @@
 /* AUDIT LOG & BITACORA MODULE - Sistema de Auditoría Cangel      */
 /* ============================================================ */
 import { AppState } from '../core/store.js';
-import { saveLocal } from '../app.js';
+import { saveLocal } from '../core/persistence.js';
 import { showDeleteConfirmModal, showPremiumAlert } from './modals.js';
 import { apiClearCloudData } from '../services/api.js';
 

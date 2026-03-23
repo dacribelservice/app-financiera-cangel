@@ -8,7 +8,7 @@ import { formatCOP, formatUSD, getColombiaTime } from '../utils/formatters.js';
 // Import de dependencias que residen en App.js (por ahora)
 import { 
   saveLocal
-} from '../app.js';
+} from '../core/persistence.js';
 import { logEvent } from './bitacora.js';
 
 import { 

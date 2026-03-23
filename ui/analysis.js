@@ -7,7 +7,7 @@ import { updateDashboard } from './dashboard.js';
 import { showPremiumAlert, showPremiumPrompt } from './modals.js';
 
 // NOTA: Estas funciones deben ser importadas desde app.js (main entry point)
-import { saveLocal } from '../app.js';
+import { saveLocal } from '../core/persistence.js';
 import { renderCatalog } from './catalog.js';
 
 /**

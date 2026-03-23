@@ -13,7 +13,7 @@ import {
 } from '../utils/validators.js';
 
 // Import de dependencias que aún residen en App.js o se han movido a módulos UI especializados
-import { saveLocal, handleGameAutocomplete, isInventoryLow } from '../app.js';
+import { saveLocal } from '../core/persistence.js';
 import { logEvent } from './bitacora.js';
 import { renderAnalysisTable } from './analysis.js';
 import { calculateBalances } from './balance.js';
@@ -980,4 +980,169 @@ export function selectStatusFilter(event, val, text) {
   const label = document.getElementById('statusSelectedText');
   if (label) label.textContent = text;
   renderInventoryJuegos();
+}
+
+/**
+ * --- MÓDULO: HISTORIAL DE VENTAS POR ITEM ---
+ */
+
+export function openModalHistorialVentas(itemId) {
+  // Buscar en todos los inventarios posibles
+  let item = AppState.inventoryGames.find(g => String(g.id) === String(itemId));
+  let itemName = item ? item.juego : '';
+  if (!item) {
+    item = AppState.paquetes.find(p => String(p.id) === String(itemId));
+    itemName = item ? item.nombre : '';
+  }
+  if (!item) {
+    item = AppState.membresias.find(m => String(m.id) === String(itemId));
+    itemName = item ? item.tipo : '';
+  }
+  if (!item) return;
+
+  const modalTitle = document.getElementById('historialVentasTitle');
+  const modalContent = document.getElementById('historialVentasContent');
+  const overlay = document.getElementById('historialVentasOverlay');
+  modalTitle.innerHTML = `<i class="fa-solid fa-chart-line" style="margin-right:10px; color:var(--accent-purple)"></i> Historial de Ventas: <span style="color:var(--accent-cyan)">${itemName}</span>`;
+
+  // Filtrar ventas de este item (ID de inventario)
+  const itemSales = AppState.sales.filter(v => String(v.inventoryId) === String(itemId));
+
+  if (itemSales.length === 0) {
+    modalContent.innerHTML = `
+      <div style="padding: 60px 20px; text-align: center; color: rgba(255,255,255,0.2);">
+        <i class="fa-solid fa-receipt" style="font-size: 3.5rem; margin-bottom: 20px; opacity: 0.1;"></i>
+        <p style="font-size: 1.1rem; font-weight: 500;">No hay ventas registradas para este ejemplar.</p>
+        <p style="font-size: 0.85rem; margin-top: 5px;">Las ventas aparecerán aquí una vez se registren en el módulo de ventas.</p>
+      </div>
+    `;
+  } else {
+    // Ordenar por fecha desc
+    itemSales.sort((a, b) => {
+      const dateA = new Date(a.fecha + ' ' + (a.hora || '00:00'));
+      const dateB = new Date(b.fecha + ' ' + (b.hora || '00:00'));
+      return dateB - dateA;
+    });
+
+    modalContent.innerHTML = `
+      <table class="premium-table" style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="background: rgba(0,0,0,0.3); border-bottom: 2px solid rgba(255,255,255,0.05);">
+            <th style="padding: 15px; text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">FECHA / HORA</th>
+            <th style="padding: 15px; text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">CLIENTE</th>
+            <th style="padding: 15px; text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">TIPO CUENTA</th>
+            <th style="padding: 15px; text-align: right; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">PRECIO VENTA</th>
+            <th style="padding: 15px; text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">VENDEDOR / NOTA</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemSales.map(v => `
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+              <td style="padding: 12px 15px; vertical-align: middle;">
+                <div style="font-size: 0.85rem; font-weight: 600; color: #fff;">${v.fecha}</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted);">${v.hora || '--:--'}</div>
+              </td>
+              <td style="padding: 12px 15px; vertical-align: middle;">
+                <div style="font-size: 0.9rem; font-weight: 700; color: var(--accent-cyan);">${v.nombre_cliente || 'N/A'}</div>
+                <div style="font-size: 0.7rem; color: #aaa;">
+                  <i class="fa-solid fa-id-card" style="font-size: 0.65rem;"></i> CC: ${v.cedula || '-'} | 
+                  <i class="fa-solid fa-phone" style="font-size: 0.65rem;"></i> ${v.celular || '-'}
+                </div>
+              </td>
+              <td style="padding: 12px 15px; vertical-align: middle;">
+                <span style="display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; background: rgba(157, 0, 255, 0.1); color: var(--accent-purple); border: 1px solid rgba(157, 0, 255, 0.2);">
+                  ${v.tipo_cuenta || 'Digital'}
+                </span>
+              </td>
+              <td style="padding: 12px 15px; vertical-align: middle; text-align: right;">
+                <div style="font-size: 0.95rem; font-weight: 800; color: var(--accent-green);">${formatCOP(v.venta || 0)}</div>
+                <div style="font-size: 0.65rem; color: #666;">${v.pago || '---'}</div>
+              </td>
+              <td style="padding: 12px 15px; vertical-align: middle;">
+                <div style="font-size: 0.8rem; font-weight: 600; color: #fff;">
+                  <i class="fa-solid fa-user-tag" style="font-size: 0.7rem; color: #ffcc00; margin-right: 5px;"></i>${v.vendedor || 'SISTEMA'}
+                </div>
+                <div style="font-size: 0.7rem; color: var(--text-muted); font-style: italic; margin-top: 2px;">
+                  ${v.nota ? `"${v.nota}"` : '<span style="opacity: 0.3;">Sin observaciones</span>'}
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+  overlay.classList.add('show');
+}
+
+export function closeModalHistorialVentas() {
+  const overlay = document.getElementById('historialVentasOverlay');
+  if (overlay) overlay.classList.remove('show');
+}
+
+/**
+ * --- MÓDULO: ALERTAS Y NOTIFICACIONES STOCK ---
+ */
+
+export function isInventoryLow() {
+  const badge = document.getElementById('notifBadge');
+  const bell = document.getElementById('notifBell');
+  if (!badge) return;
+
+  const result = val_pureIsInventoryLow(AppState.inventoryGames);
+  if (result.count > 0) {
+    badge.innerText = result.count;
+    badge.classList.remove('hidden');
+    if (bell) bell.style.color = '#ff4757';
+  } else {
+    badge.innerText = '';
+    badge.classList.add('hidden');
+    if (bell) bell.style.color = 'var(--text-muted)';
+  }
+}
+
+/**
+ * --- MÓDULO: AUTOCOMPLETADO (ANÁLISIS -> INVENTARIO) ---
+ */
+
+export function handleGameAutocomplete(input) {
+  const container = document.getElementById('gameSuggestions');
+  const val = input.value.trim().toLowerCase();
+  if (!val) {
+    container.style.display = 'none';
+    return;
+  }
+
+  // Obtener nombres únicos de AppState.analysis
+  const uniqueNames = [...new Set(AppState.analysis.map(row => row.nombre))].filter(n => n);
+  
+  // Filtrar por lo que el usuario escribe
+  const matches = uniqueNames.filter(name => name.toLowerCase().includes(val));
+
+  if (matches.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  // Renderizar sugerencias con diseño premium
+  container.innerHTML = matches.map(name => `
+    <div class="autocomplete-suggestion" onclick="selectGameSuggestion('${name.replace(/'/g, "\\'")}')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-blue)"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></div>
+      <span>${name}</span>
+    </div>
+  `).join('');
+  container.style.display = 'block';
+}
+
+export function selectGameSuggestion(name) {
+  const input = document.getElementById('invJuegoNombre');
+  const container = document.getElementById('gameSuggestions');
+  if (!input || !container) return;
+
+  input.value = name;
+  container.style.display = 'none';
+  
+  // Opcional: enfocar el siguiente campo
+  const nextInput = document.getElementById('invJuegoCorreo');
+  if (nextInput) nextInput.focus();
 }

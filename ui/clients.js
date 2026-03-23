@@ -1,6 +1,8 @@
 import { AppState } from '../core/store.js';
 import { apiFetchClientes } from '../services/api.js';
-import { asignarClienteALista } from '../app.js';
+import { saveLocal } from '../core/persistence.js';
+import { logEvent } from './bitacora.js';
+import { showToast } from './modals.js';
 
 /**
  * Fase 5.1c: Módulo de Clientes & CRM (Lectura y Renderizado)
@@ -228,4 +230,167 @@ export function filterClients(searchText) {
       (c.cc && c.cc.toLowerCase().includes(text));
   });
   renderClientsHistoryTable(filtered);
+}
+
+/* ============================================================ */
+/* SISTEMA DE LISTAS DE CLIENTES            */
+/* ============================================================ */
+
+/**
+ * Proxy para abrir el modal de creación de listas (compatibilidad con legado)
+ */
+export function abrirModalSorteo() {
+  abrirModalCrearLista();
+}
+
+/**
+ * Abre el modal dinámico premium para gestionar listas
+ */
+export function abrirModalCrearLista() {
+  // Construir el modal dinámico premium
+  let overlay = document.getElementById('crearListaOverlay');
+  if (overlay) overlay.remove();
+
+  const listas = AppState.listas || [];
+  const listaItems = listas.length === 0
+    ? '<p style="color:var(--text-muted);font-size:0.82rem;margin:0;">No hay listas creadas aún.</p>'
+    : listas.map(l => `
+        <div style="display:flex;align-items:center;justify-content:space-between;
+             background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
+             border-radius:8px;padding:8px 12px;margin-bottom:6px;">
+          <span style="font-weight:600;color:#fff;">${l.nombre}</span>
+          <button onclick="eliminarListaNombrada('${l.id}')"
+            style="background:rgba(255,71,87,0.15);border:1px solid rgba(255,71,87,0.3);
+                   border-radius:6px;color:#ff4757;padding:3px 10px;cursor:pointer;font-size:0.78rem;">
+            Eliminar
+          </button>
+        </div>`).join('');
+
+  overlay = document.createElement('div');
+  overlay.id = 'crearListaOverlay';
+  overlay.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);
+    z-index:9999;display:flex;align-items:center;justify-content:center;`;
+  overlay.innerHTML = `
+    <div style="background:#1a1f2e;border:1px solid rgba(255,255,255,0.12);border-radius:18px;
+                padding:2rem;width:420px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+      <div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:1.5rem;">
+        <div style="width:48px;height:48px;border-radius:12px;background:rgba(0,198,255,0.15);
+             border:1px solid rgba(0,198,255,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i data-lucide="list-plus" style="width:22px;height:22px;color:var(--accent-cyan);"></i>
+        </div>
+        <div>
+          <h3 style="margin:0 0 4px;color:#fff;font-size:1.1rem;">Gestionar Listas</h3>
+          <p style="margin:0;color:var(--text-muted);font-size:0.85rem;">Crea listas para organizar tus clientes por categoría.</p>
+        </div>
+      </div>
+      <div style="margin-bottom:1rem;">
+        <div style="max-height:180px;overflow-y:auto;margin-bottom:12px;" id="listasExistentes">
+          ${listaItems}
+        </div>
+        <label style="display:block;font-size:0.88rem;color:var(--text-muted);margin-bottom:6px;">Nombre de la nueva lista:</label>
+        <input id="inputNuevaLista" type="text" placeholder="Ej: VIP, Espera, Potenciales..."
+          style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.06);
+                 border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#fff;
+                 padding:10px 14px;font-size:0.9rem;outline:none;"
+          onfocus="this.style.borderColor='var(--accent-cyan)'"
+          onblur="this.style.borderColor='rgba(255,255,255,0.15)'"
+          onkeydown="if(event.key==='Enter') confirmarCrearLista()">
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:1.5rem;">
+        <button onclick="document.getElementById('crearListaOverlay').remove()"
+          style="padding:10px 22px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);
+                 background:transparent;color:var(--text-muted);cursor:pointer;font-size:0.88rem;">
+          Cancelar
+        </button>
+        <button onclick="confirmarCrearLista()"
+          style="padding:10px 24px;border-radius:10px;border:none;
+                 background:var(--accent-cyan);color:#000;font-weight:700;
+                 cursor:pointer;font-size:0.88rem;letter-spacing:0.5px;">
+          ACEPTAR
+        </button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  if (window.lucide) window.lucide.createIcons();
+  setTimeout(() => { const inp = document.getElementById('inputNuevaLista'); if (inp) inp.focus(); }, 100);
+}
+
+/**
+ * Procesa la creación de una nueva lista
+ */
+export function confirmarCrearLista() {
+  const inp = document.getElementById('inputNuevaLista');
+  if (!inp) return;
+  const nombre = inp.value.trim();
+  if (!nombre) { inp.style.borderColor = '#ff4757'; inp.focus(); return; }
+
+  if (!AppState.listas) AppState.listas = [];
+  const existe = AppState.listas.find(l => l.nombre.toLowerCase() === nombre.toLowerCase());
+  if (existe) { showToast('Ya existe una lista con ese nombre', 'warning'); return; }
+
+  AppState.listas.push({ id: Date.now().toString(), nombre });
+  saveLocal();
+  logEvent('Analytics: Lista Creada', `Nombre: ${nombre}`);
+  showToast(`✅ Lista "${nombre}" creada`);
+
+  // Actualizar modal sin cerrarlo para poder crear más
+  abrirModalCrearLista();
+  // Re-renderizar tabla historial para que aparezca en el dropdown
+  if (window._clientsHistoryStaticData) renderClientsHistoryTable(window._clientsHistoryStaticData);
+}
+
+/**
+ * Elimina una lista y desvincula los clientes asociados
+ */
+export function eliminarListaNombrada(listaId) {
+  if (!AppState.listas) return;
+  const lista = AppState.listas.find(l => l.id === listaId);
+  if (!lista) return;
+
+  AppState.listas = AppState.listas.filter(l => l.id !== listaId);
+  // Quitar clientes asignados a esa lista
+  if (AppState.clientsListas) {
+    Object.keys(AppState.clientsListas).forEach(k => {
+      if (AppState.clientsListas[k] === listaId) delete AppState.clientsListas[k];
+    });
+  }
+
+  saveLocal();
+  logEvent('Analytics: Lista Eliminada', `Nombre: ${lista.nombre}`);
+  showToast(`Lista "${lista.nombre}" eliminada`, 'info');
+  abrirModalCrearLista();
+  if (window._clientsHistoryStaticData) renderClientsHistoryTable(window._clientsHistoryStaticData);
+}
+
+/**
+ * Asigna un cliente a una lista específica o lo remueve
+ */
+export function asignarClienteALista(nombreKey, listaId) {
+  if (!AppState.clientsListas) AppState.clientsListas = {};
+  if (listaId) {
+    AppState.clientsListas[nombreKey] = listaId;
+  } else {
+    delete AppState.clientsListas[nombreKey];
+  }
+
+  // Sincronización retroactiva: actualizar ventas existentes del cliente
+  if (AppState.sales && AppState.sales.length > 0) {
+    AppState.sales.forEach(v => {
+      if ((v.nombre_cliente || '').toLowerCase() === nombreKey) {
+        v.lista = listaId;
+      }
+    });
+  }
+  saveLocal();
+}
+
+/**
+ * Guarda un valor en el mapeo de listas de clientes
+ */
+export function guardarLista(nombreKey, valor) {
+  if (!AppState.clientsListas) AppState.clientsListas = {};
+  AppState.clientsListas[nombreKey] = valor.trim();
+  saveLocal();
 }
