@@ -29,7 +29,9 @@
 - [x] Fase 5.1d: Módulo de Analytics & Gráficas (`ui/analytics.js`). (Extracto completo de rankings y Chart.js)
 
 ### 🟣 FASE 6: ORQUESTACIÓN FINAL
-- [x] Fase 6.1: Limpiar `app.js` para que actúe EXCLUSIVAMENTE como el Entry Point principal. (EN PROGRESO)
+- [x] Fase 6.1: Limpiar `app.js` para que actúe EXCLUSIVAMENTE como el Entry Point principal. (ORQUESTACIÓN DE BALANCE COMPLETADA)
+- [ ] Fase 6.2: Extracción de Módulo de Usuarios y 2FA. (Pendiente)
+- [ ] Fase 6.3: Extracción de Módulo de Bitácora. (Pendiente)
 
 ---
 
@@ -76,6 +78,7 @@
 | Inventario (Full) | `inventario.test.js` | ✅ 12/12 PASSED | Juegos, Paquetes, Membresías, Xbox, Físico, Filtros, Pestañas |
 | Ventas (Full) | `ventas.test.js` | ✅ 9/9 PASSED | Modales, Autocompletes (6 tipos), Gestión, Anulación, Pestañas |
 | Analytics (Full) | `analytics.test.js` | ✅ 6/6 PASSED | Historial, Listas, Paginación, Sorteos, Ranking Asesores |
+| Balance (Full) | `balance.test.js` | ✅ 4/4 PASSED | Cálculos socio, Gastos/Ingresos, Auditoría PDF/Excel |
 
 ### 🛠️ Próximos pasos de reparación guiada:
 - Aplicar el mismo patrón para el módulo de **Ventas** (crear `__tests__/ventas.test.js`).
@@ -93,7 +96,8 @@
 - [x] **Sincronización de Ventas:** Inyectadas funciones de gestión y autocompletado total.
 - [x] **Reparación de Sugerencias:** Inyectada `selectGameSuggestion` al `GlobalBridge` (Resuelto ReferenceError).
 - [x] **Sincronización de Analytics:** Inyectadas funciones de ranking, filtrado de clientes, gestión de listas y paginación.
-- [ ] **Restauración del Módulo de Análisis (PS Store):** Inyectar funciones de la tabla de análisis: `updateGlobalTRM`, `deleteAnalysis`, `updateAnalysisData`, `editAnalysisImage`.
+- [x] **Gestión de Balance (Finalizado):** Extraídas funciones de charts, PDF, Excel y gastos del archivo `app.js`.
+- [x] **Limpieza de Residuos:** Eliminada declaración duplicada de `processPDF` y restos malformados en `app.js` (Resuelto SyntaxError).
 - [ ] **Garantía de Helpers de UI:** Inyectar `showPremiumAlert` y `showPremiumPrompt`.
 
 ---
@@ -105,6 +109,7 @@
 | #0 | ReferenceError en Login | Función `doLogin` no expuesta en el scope global. | Añadida a objeto `GlobalBridge` y window. | ✅ Fixed |
 | #7 | Falso Positivo en Inventario | Pruebas incompletas para Xbox, Físico y Paquetes. | Ampliada cobertura en `inventario.test.js`. | ✅ Fixed |
 | #8 | ReferenceError en Sugerencias | `selectGameSuggestion` no estaba en el puente. | Inyectada en `GlobalBridge` de `app.js`. | ✅ Fixed |
+| #9 | SyntaxError: processPDF | Re-declaración residual de `processPDF` en `app.js` tras importación. | Eliminación física del código residual del módulo de Balance en `app.js`. | ✅ Fixed |
 | #9 | SyntaxError en Botones Inventario | Mal escapado de strings en `onclick` dinámicos. | Envueltos argumentos `${item.id}` en comillas simples. | ✅ Fixed |
 | #10 | Botones Huérfanos en Balance | Funciones de añadir gastos e ingresos no expuestas. | Inyectadas `addExpense`, `addIngreso`, etc. en `GlobalBridge`. | ✅ Fixed |
 | #11 | Navegación Huérfana en Bitácora | `switchBitacoraTab` y `renderBitacoraEventos` no vinculadas. | Añadidas al puente global y verificadas con tests. | ✅ Fixed |
