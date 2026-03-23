@@ -12,12 +12,12 @@ import {
   isInventoryLow as val_pureIsInventoryLow 
 } from '../utils/validators.js';
 
-// Import de dependencias que aún residen en App.js (Se extraerán en futuras fases)
-import { 
-  saveLocal, logEvent, renderAnalysisTable, 
-  isInventoryLow, calculateBalances, updateDashboard,
-  update2FABellBadge, handleGameAutocomplete
-} from '../app.js';
+// Import de dependencias que aún residen en App.js o se han movido a módulos UI especializados
+import { saveLocal, logEvent, handleGameAutocomplete, isInventoryLow } from '../app.js';
+import { renderAnalysisTable } from './analysis.js';
+import { calculateBalances } from './balance.js';
+import { updateDashboard } from './dashboard.js';
+import { update2FABellBadge } from './users.js';
 import { showDeleteConfirmModal, showToast } from './modals.js';
 import { renderCuentasPSN } from './sales.js';
 

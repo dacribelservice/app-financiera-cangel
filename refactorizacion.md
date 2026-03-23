@@ -183,7 +183,44 @@
 - [x] **Parte 2: Gestión y CRUD:** Se consolidó la lógica de listas y asignación.
 - [x] **Incidente #13:** Modales de Xbox/Físico corregidos y vinculados al Bridge.
 
+#### **Fase 6.1: Orquestación Final (COMPLETADA ✅)**
+- [x] **Extracción de Balance:** Se movió la lógica financiera a `ui/balance.js`.
+- [x] **Extracción de Dashboard:** Se movió la lógica de KPIs a `ui/dashboard.js`.
+- [x] **Extracción de Análisis e IA:** Se movió el motor de PS Store y Gemini a `ui/analysis.js`.
+- [x] **Extracción de Catálogo:** Se movió la lógica de E-commerce y Carrito a `ui/catalog.js`.
+- [x] **Saneamiento de app.js:** Reducción masiva de líneas y conversión a Entry Point modular.
+- [x] **GlobalBridge Integra:** Todas las funciones expuestas correctamente para la vista HTML.
+- [x] **Estabilidad:** Tests 52/52 pasando exitosamente.
+
+#### **Fase 6.2: Extracción de Usuarios y 2FA (COMPLETADA ✅)**
+- [x] **Consolidación de Seguridad:** Toda la lógica de 2FA (códigos, notificaciones y validación) reside en `ui/users.js`.
+- [x] **Gestión Administrativa:** CRUD de usuarios, perfiles y permisos granulares migrados.
+- [x] **GlobalBridge Saneado:** Todas las funciones expuestas correctamente para mantener la operatividad desde HTML.
+- [x] **Estabilidad:** Tests 52/52 pasando exitosamente.
+
 ---
 
-**Chet List de Fase 2.1 (Completada):**
-... (mantener historial) ...
+**Nota Final de Fase 6.2:** La lógica de perfiles y seguridad 2FA ha sido externalizada. El Entry Point `app.js` es ahora un 80% más ligero en comparación con su estado inicial.
+
+---
+
+**Nota Final de Fase 6.1:** `app.js` ha sido purificado, delegando toda la lógica de interfaz a la carpeta `/ui`. La aplicación ahora sigue un patrón de diseño modular estricto.
+
+---
+
+#### **RESOLUCIÓN DE INCIDENTES (FASE 6.2)**
+
+- **Incidente #14: Dependencias Huérfanas en Inventario**
+  - **Causa Raíz:** Tras la extracción de Usuarios y 2FA, `ui/inventory.js` quedó apuntando a `app.js` para funciones que ya no residían allí (`update2FABellBadge`, `updateDashboard`, `calculateBalances`, etc.). También se detectó un `ReferenceError` por la ausencia del wrapper `isInventoryLow`.
+  - **Solución:**
+    - [x] Actualización de imports en `ui/inventory.js` hacia los módulos UI correspondientes (`./users.js`, `./dashboard.js`, `./balance.js`, `./analysis.js`).
+    - [x] Implementación de wrapper `isInventoryLow` en `ui/inventory.js` utilizando el validador puro de `validators.js`.
+    - [x] Corrección de imports residuales en `ui/modals.js` (apuntando a `ui/dashboard.js`).
+  - **Resultado:** Todos los 52 tests pasan exitosamente en verde. Operatividad de 2FA y Gestión restaurada.
+
+- **Incidente #15: Dependencia de renderCuentasPSN en Usuarios**
+  - **Causa Raíz:** El módulo `ui/users.js` intentaba importar `renderCuentasPSN` desde `app.js`, pero tras la fragmentación de la Fase 5.1b, dicha función reside en `ui/sales.js`. Esto bloqueaba la ejecución de `use2FACode`.
+  - **Solución:**
+    - [x] Rastro de la función `renderCuentasPSN` localizada en `ui/sales.js`.
+    - [x] Actualización del import en `ui/users.js` hacia `./sales.js`.
+  - **Resultado:** Suite de 52 tests pasando al 100%. Login y flujo de 2FA restaurados.

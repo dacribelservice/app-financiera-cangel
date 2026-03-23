@@ -1,4 +1,5 @@
-import { logEvent, saveLocal, updateDashboard } from '../app.js';
+import { logEvent, saveLocal } from '../app.js';
+import { updateDashboard } from './dashboard.js';
 import { AppState } from '../core/store.js';
 
 // --- MODAL ELIMINACION PREMIUM ---

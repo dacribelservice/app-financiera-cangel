@@ -33,6 +33,14 @@ import {
   selectStatusFilter, getPaqueteSlots, getMembresiaSlots,
   isValidDuplicateEmail as ui_isValidDuplicateEmail
 } from './ui/inventory.js';
+import { 
+  renderCatalog, removeFromCatalog, addToCartFromCard, addToCart, toggleCart, renderCart, updateCartBadge,
+  openCheckout, closeCheckout, confirmCheckout
+} from './ui/catalog.js';
+import { 
+  renderGestionUsuarios, openModalUsuario, closeModalUsuario, saveUsuario, toggleEstadoUsuario, toggleAllPermissions, updateChecklistFromRole,
+  open2FAModal, closeModal2FA, open2FANotifModal, close2FANotifModal, use2FACode, update2FABellBadge
+} from './ui/users.js';
 import {
   updateVentasMetrics, llenarFiltroAsesoresVentas, llenarFiltroMesesVentas, limpiarFiltrosVentas,
   switchVentasMode, handleVentasSearchDebounce, getInventoryItemData, renderVentas,
@@ -288,128 +296,16 @@ function switchTab(tabName) {
 /* ============================================================ */
 /* 4. MÓDULO CATÃLOGO & ECOMMERCE          */
 /* ============================================================ */
-export function renderCatalog() {
-  const grid = document.getElementById('catalogGrid');
-  grid.innerHTML = '';
-  AppState.catalog.forEach(game => {
-    const card = document.createElement('div');
-    card.className = 'game-card';
-    card.innerHTML = `
-      <div class="game-img-container">
-        <img src="${game.image}" class="game-img" alt="${game.nombre}">
-        ${game.sale < game.precioBase ? '<span class="game-badge">OFERTA</span>' : ''}
-      </div>
-      <div class="game-info">
-        <h3 class="game-title">${game.nombre}</h3>
-        <select class="consola-select" id="consola-${game.id}">
-          <option value="PS4">PS4</option>
-          <option value="PS5">PS5</option>
-        </select>
-        <div class="game-pricing-row">
-          <span>PS4 <strong>$${Math.round(game.precio_ps4)}</strong></span>
-          <span class="price-separator">/</span>
-          <span>PS5 <strong>$${Math.round(game.precio_ps5)}</strong></span>
-        </div>
-        <button class="btn-add-cart-premium" onclick="addToCartFromCard(${game.id})">
-          Añadir al carrito
-        </button>
-        ${AppState.currentUser?.role === 'admin' ? `
-          <button class="btn-delete-game-abs" onclick="removeFromCatalog(${game.id})">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-          </button>
-        ` : ''}
-      </div>
-    `;
-    grid.appendChild(card);
-  });
-}
-function removeFromCatalog(id) {
-  showDeleteConfirmModal(
-    '¿Estás seguro de eliminar este juego del catálogo?',
-    () => {
-      AppState.catalog = AppState.catalog.filter(g => g.id !== id);
-      renderCatalog();
-      saveLocal();
-      if (typeof showToast === 'function') showToast('Juego eliminado del catálogo', 'info');
-    }
-  );
-}
-function addToCartFromCard(id) {
-  const console = document.getElementById(`consola-${id}`).value;
-  addToCart(id, console);
-}
-function addToCart(id, console) {
-  const game = AppState.catalog.find(g => g.id === id);
-  AppState.cart.push({ ...game, cartId: Date.now(), console, price: console === 'PS4' ? game.precio_ps4 : game.precio_ps5 });
-  updateCartBadge();
-  renderCart();
-  // Abrir popup del carrito siempre al agregar
-  document.getElementById('cartDrawer').classList.add('open');
-  document.getElementById('cartOverlay').classList.add('show');
-}
-function toggleCart() {
-  document.getElementById('cartDrawer').classList.toggle('open');
-  document.getElementById('cartOverlay').classList.toggle('show');
-}
-function renderCart() {
-  const container = document.getElementById('cartItems');
-  container.innerHTML = AppState.cart.length === 0 ? '<p>Vacío</p>' : '';
-  let total = 0;
-  AppState.cart.forEach(item => {
-    total += item.price;
-    const div = document.createElement('div');
-    div.className = 'cart-item';
-    div.innerHTML = `<span>${item.nombre} (${item.console})</span><span>$${item.price}</span>`;
-    container.appendChild(div);
-  });
-  document.getElementById('cartTotal').textContent = `$${total.toFixed(2)}`;
-}
-function updateCartBadge() {
-  document.getElementById('cartBadge').textContent = AppState.cart.length;
-}
-function openCheckout() {
-  if (AppState.cart.length === 0) return;
-  const isClient = AppState.currentUser?.role === 'cliente';
-  const groupCanal = document.getElementById('groupCanal');
-  const groupSorteo = document.getElementById('groupSorteo');
-  if (groupCanal) groupCanal.style.display = isClient ? 'none' : 'block';
-  if (groupSorteo) groupSorteo.style.display = isClient ? 'none' : 'block';
-  document.getElementById('checkoutOverlay').classList.add('show');
-}
-function closeCheckout() {
-  document.getElementById('checkoutOverlay').classList.remove('show');
-}
-async function confirmCheckout() {
-  const cliente = document.getElementById('ckNombre').value;
-  if (!cliente) {
-    await showPremiumAlert('Error', 'Nombre requerido', 'error');
-    return;
-  }
-  const time = getColombiaTime();
-  AppState.cart.forEach(item => {
-    const newSale = {
-      id: Date.now() + Math.random(),
-      fecha: time.date,
-      hora: time.time,
-      cliente,
-      juego: item.nombre,
-      consola: item.console,
-      precio: item.price,
-      pago: document.getElementById('ckPago').value,
-      asesor: AppState.currentUser.name,
-      canal: (AppState.currentUser?.role === 'cliente') ? 'CLIENTE' : document.getElementById('ckCanal').value,
-      estado: 'ENTREGADO',
-      _searchIndex: `${(cliente || '')} ${(item.nombre || '')} ${(item.console || '')} ${(AppState.currentUser.name || '')}`.toLowerCase()
-    };
-    AppState.sales.unshift(newSale);
-  });
-  AppState.cart = [];
-  updateCartBadge();
-  closeCheckout();
-  toggleCart();
-  saveLocal();
-  await showPremiumAlert("Venta Exitosa", "¡La compra se ha registrado correctamente!", "success");
-}
+/* --- Módulo de Catálogo & E-commerce movido a ui/catalog.js --- */
+
+
+
+
+
+
+
+
+
 // Global variable para el debounce del panel de ventas
 let searchVentasTimeout = null;
 // --- AUTOCOMPLETADO DE CLIENTE POR CÉDULA ---
@@ -987,337 +883,15 @@ function renderBitacoraEventos() {
     tbody.appendChild(tr);
   });
 }
-function renderGestionUsuarios() {
-  const tbody = document.getElementById('bodyGestionUsuarios');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  AppState.users.forEach(u => {
-    const isSuperAdmin = u.email === 'cangel.games.soporte@gmail.com';
-    const estadoClass = u.activo ? 'status-active' : 'status-inactive';
-    const estadoText = u.activo ? 'Activo' : 'Inactivo';
-    // Check if total access
-    const hasTotal = u.permisos.acceso_total ? '<i data-lucide="shield-alert" class="minimalist-icon" style="color:#ff4757"></i> Total' : 'Restringido';
-    const tr = document.createElement('tr');
-    // Si es Super Admin (Cristian), no mostramos acciones según requerimiento
-    const accionesHtml = isSuperAdmin ? '' : `
-      <div style="display: flex; gap: 8px;">
-        <button class="action-btn-premium" onclick="openModalUsuario('${u.email}')" title="Editar">
-          <i data-lucide="pencil" style="width:16px; height:16px;"></i>
-        </button>
-        <button class="action-btn-premium" onclick="toggleEstadoUsuario('${u.email}')" title="${u.activo ? 'Desactivar' : 'Reactivar'}">
-          <i data-lucide="trash-2" style="width:16px; height:16px;"></i>
-        </button>
-      </div>
-    `;
-    tr.innerHTML = `
-      <td>${u.email}</td>
-      <td>${u.nombre}</td>
-      <td>${u.rolBase || 'N/A'}</td>
-      <td><span class="status-badge ${estadoClass}">${estadoText}</span></td>
-      <td>${accionesHtml}</td>
-    `;
-    tbody.appendChild(tr);
-  });
-  if (window.lucide) window.lucide.createIcons();
-}
-function openModalUsuario(email = null) {
-  document.getElementById('formUsuario').reset();
-  const title = document.getElementById('modalUsuarioTitle');
-  if (email) {
-    title.innerHTML = '<i data-lucide="edit" class="minimalist-icon"></i> Editar Usuario';
-    const user = AppState.users.find(u => u.email === email);
-    if (user) {
-      document.getElementById('usuarioEditEmail').value = user.email;
-      document.getElementById('usNombre').value = user.nombre;
-      document.getElementById('usEmail').value = user.email;
-      document.getElementById('usEmail').disabled = true; // No cambiar correo, usar como ID
-      document.getElementById('usPassword').value = ''; // Ocultar contraseña por defecto
-      document.getElementById('usPassword').placeholder = 'Dejar en blanco para no cambiar';
-      document.getElementById('usPassword').required = false;
-      document.getElementById('usRol').value = user.rolBase || 'Asesor Comercial';
-      // Load permissions
-      document.getElementById('chkAccesoTotal').checked = user.permisos.acceso_total || false;
-      const perms = ['p_dashboard_ver', 'p_analisis_ver', 'p_catalogo_ver',
-        'p_ventas_ver', 'p_ventas_crear', 'p_ventas_editar', 'p_ventas_eliminar',
-        'p_inventario_ver', 'p_inventario_crear', 'p_inventario_editar', 'p_inventario_eliminar',
-        'p_analytics_ver', 'p_balance_ver', 'p_balance_editar', 'p_bitacora_ver'];
-      perms.forEach(p => {
-        if (user.permisos[p]) {
-          document.getElementById(p).checked = true;
-        }
-      });
-      toggleAllPermissions(); // UI update base on total access
-    }
-  } else {
-    title.innerHTML = '<i data-lucide="user-plus" class="minimalist-icon"></i> Nuevo Usuario';
-    document.getElementById('usuarioEditEmail').value = '';
-    document.getElementById('usEmail').disabled = false;
-    document.getElementById('usPassword').placeholder = 'Obligatorio para nuevos';
-    document.getElementById('usPassword').required = true;
-    updateChecklistFromRole(); // Suggested defaults
-  }
-  document.getElementById('modalUsuarioOverlay').style.display = 'flex';
-  if (window.lucide) window.lucide.createIcons();
-}
-function closeModalUsuario() {
-  document.getElementById('modalUsuarioOverlay').style.display = 'none';
-}
-function toggleAllPermissions() {
-  const isTotal = document.getElementById('chkAccesoTotal').checked;
-  const checkboxes = document.querySelectorAll('.perm-chk');
-  checkboxes.forEach(chk => {
-    chk.disabled = isTotal;
-    if (isTotal) chk.checked = true;
-  });
-}
-function updateChecklistFromRole() {
-  const isEditing = document.getElementById('usuarioEditEmail').value !== '';
-  if (isEditing) return; // Si estamos editando, respetamos lo que está en la BD
-  const rol = document.getElementById('usRol').value;
-  document.getElementById('formUsuario').reset();
-  document.getElementById('usRol').value = rol; // restore select
-  // Uncheck all
-  document.querySelectorAll('.perm-chk').forEach(c => c.checked = false);
-  document.getElementById('chkAccesoTotal').checked = false;
-  if (rol === 'Administrador') {
-    ['p_dashboard_ver', 'p_analisis_ver', 'p_catalogo_ver',
-      'p_ventas_ver', 'p_ventas_crear', 'p_ventas_editar', 'p_ventas_eliminar', 'p_ventas_anular',
-      'p_inventario_ver', 'p_inventario_crear', 'p_inventario_editar', 'p_inventario_eliminar',
-      'p_analytics_ver', 'p_balance_ver', 'p_balance_editar', 'p_bitacora_ver'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.checked = true;
-      });
-  } else if (rol === 'Asesor Comercial') {
-    ['p_dashboard_ver', 'p_catalogo_ver', 'p_ventas_ver', 'p_ventas_crear', 'p_inventario_ver'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.checked = true;
-    });
-  } else if (rol === 'Auditor') {
-    ['p_dashboard_ver', 'p_analisis_ver', 'p_catalogo_ver', 'p_ventas_ver', 'p_inventario_ver', 'p_analytics_ver', 'p_balance_ver'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.checked = true;
-    });
-  }
-  toggleAllPermissions();
-}
-function saveUsuario() {
-  const editEmail = document.getElementById('usuarioEditEmail').value;
-  const nombre = document.getElementById('usNombre').value.trim();
-  const email = document.getElementById('usEmail').value.trim();
-  const password = document.getElementById('usPassword').value.trim();
-  const rolBase = document.getElementById('usRol').value;
-  const accesoTotal = document.getElementById('chkAccesoTotal').checked;
-  if (!nombre || !email) {
-    alert("Por favor completa los campos principales.");
-    return;
-  }
-  // Generate permisos object
-  const permisos = { acceso_total: accesoTotal };
-  const perms = ['p_dashboard_ver', 'p_analisis_ver', 'p_catalogo_ver',
-    'p_ventas_ver', 'p_ventas_crear', 'p_ventas_editar', 'p_ventas_eliminar', 'p_ventas_anular',
-    'p_inventario_ver', 'p_inventario_crear', 'p_inventario_editar', 'p_inventario_eliminar',
-    'p_analytics_ver', 'p_balance_ver', 'p_balance_editar', 'p_bitacora_ver'];
-  perms.forEach(p => {
-    permisos[p] = document.getElementById(p).checked;
-  });
-  if (editEmail) {
-    const userIndex = AppState.users.findIndex(u => u.email.toLowerCase() === editEmail.toLowerCase());
-    if (userIndex !== -1) {
-      if (AppState.users[userIndex].email === 'cangel.games.soporte@gmail.com') return;
-      AppState.users[userIndex].nombre = nombre;
-      AppState.users[userIndex].rolBase = rolBase;
-      AppState.users[userIndex].permisos = permisos;
-      if (password !== '') {
-        AppState.users[userIndex].pass = password; // Only update if typed
-      }
-      logEvent('Edición Usuario', `Rol/Permisos modificados para ${email}`);
-    }
-  } else {
-    if (!password) {
-      alert("La contraseña es obligatoria para nuevos usuarios.");
-      return;
-    }
-    const finalEmail = email.toLowerCase();
-    if (AppState.users.find(u => u.email.toLowerCase() === finalEmail)) {
-      alert("El correo ya está en uso por otro usuario.");
-      return;
-    }
-    AppState.users.push({
-      email: finalEmail,
-      nombre: nombre,
-      pass: password,
-      rolBase: rolBase,
-      permisos: permisos,
-      activo: true
-    });
-    logEvent('Creación Usuario', `Nuevo usuario registrado: ${email} (${rolBase})`);
-  }
-  saveLocal();
-  renderGestionUsuarios();
-  closeModalUsuario();
-}
-function toggleEstadoUsuario(email) {
-  if (email === 'cangel.games.soporte@gmail.com') {
-    alert("El Super Administrador no puede desactivarse.");
-    return;
-  }
-  const user = AppState.users.find(u => u.email === email);
-  if (user) {
-    user.activo = !user.activo;
-    saveLocal();
-    renderGestionUsuarios();
-    logEvent(user.activo ? 'Reactivación Usuario' : 'Desactivación Usuario', `Usuario ${email} fue ${user.activo ? 'reactivado' : 'desactivado'}`);
-  }
-}
+/* --- Módulo de Gestión de Usuarios y 2FA movido a ui/users.js --- */
+
 /* ============================================================ */
 /* 2FA CODES MANAGEMENT SYSTEM             */
 /* ============================================================ */
-function open2FAModal(itemId, itemType) {
-  const modal = document.getElementById('modal2FAOverlay');
-  if (!modal) return;
-  const item = findInventoryItemById(itemId, itemType);
-  if (!item) return;
-  modal.dataset.itemId = itemId;
-  modal.dataset.itemType = itemType;
-  modal.classList.add('show');
-  render2FACodesList(item, itemId, itemType);
-}
-function findInventoryItemById(id, type) {
-  if (type === 'game') return AppState.inventoryGames.find(g => String(g.id) === String(id));
-  if (type === 'paquete') return AppState.paquetes.find(p => String(p.id) === String(id));
-  if (type === 'membresia') return AppState.membresias.find(m => String(m.id) === String(id));
-  return null;
-}
-function render2FACodesList(item, itemId, itemType) {
-  const listado = document.getElementById('listadoCodigos2FA');
-  if (!listado) return;
-  const codesRaw = item.cod_2_pasos || item.codigo2fa || '';
-  const codes = codesRaw.split('\n').map(x => x.trim()).filter(x => x.length > 0);
-  if (codes.length === 0) {
-    listado.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:20px;">No hay códigos disponibles.</p>';
-    closeModal2FA();
-    return;
-  }
-  listado.innerHTML = '';
-  codes.forEach((code, index) => {
-    const div = document.createElement('div');
-    div.className = 'code-2fa-item';
-    div.innerHTML = `
-      <div style="display:flex; flex-direction:column;">
-        <span class="code-2fa-label">Código de verificación #${index + 1}</span>
-        <span class="code-2fa-value">${code}</span>
-      </div>
-      <button class="btn-utilizar" onclick="use2FACode('${itemId}', '${itemType}', ${index})">Utilizar</button>
-    `;
-    listado.appendChild(div);
-  });
-}
-async function use2FACode(itemId, itemType, codeIndex) {
-  const item = findInventoryItemById(itemId, itemType);
-  if (!item) return;
-  const codesRaw = item.cod_2_pasos || item.codigo2fa || '';
-  const codes = codesRaw.split('\n').map(x => x.trim()).filter(x => x.length > 0);
-  if (codeIndex < 0 || codeIndex >= codes.length) return;
-  const codeToUse = codes[codeIndex];
-  // Copiar al portapapeles
-  try {
-    await navigator.clipboard.writeText(codeToUse);
-    if (typeof showToast === 'function') showToast('Código copiado al portapapeles', 'success');
-  } catch (err) {
-    console.error('Error al copiar:', err);
-  }
-  // Eliminar código
-  codes.splice(codeIndex, 1);
-  const newCodesRaw = codes.join('\n');
-  item.codigo2fa = newCodesRaw;
-  // Por compatibilidad si existiera la otra
-  if (item.cod_2_pasos !== undefined) item.cod_2_pasos = newCodesRaw;
-  // Persistir y refrescar
-  logEvent('2FA: Código Utilizado', `Item ID: ${itemId} | Tipo: ${itemType} | Código: ${codeToUse}`);
-  saveLocal();
-  renderCuentasPSN();
-  // Actualizar lista en el modal o cerrar si ya no hay
-  if (codes.length > 0) {
-    render2FACodesList(item, itemId, itemType);
-  } else {
-    closeModal2FA();
-  }
-}
-function closeModal2FA() {
-  const modal = document.getElementById('modal2FAOverlay');
-  if (modal) modal.classList.remove('show');
-}
+
 /* --- LÓGICA DE NOTIFICACIONES 2FA (POCOS CÓDIGOS) --- */
-export function update2FABellBadge() {
-  const badge = document.getElementById('badge2FANotif');
-  if (!badge) return;
-  const low2FACount = countLow2FACuentas();
-  if (low2FACount > 0) {
-    badge.textContent = low2FACount;
-    badge.style.display = 'flex';
-  } else {
-    badge.style.display = 'none';
-  }
-}
-function countLow2FACuentas() {
-  const soldGames = (AppState.inventoryGames || []).filter(g => g.estado === 'Vendido' || AppState.sales.some(s => String(s.inventoryId) === String(g.id) && s.productType === 'game'));
-  const soldPaquetes = (AppState.paquetes || []).filter(p => p.estado === 'Vendido' || AppState.sales.some(s => String(s.inventoryId) === String(p.id) && s.productType === 'paquete'));
-  const soldMembresias = (AppState.membresias || []).filter(m => m.estado === 'Vendido' || AppState.sales.some(s => String(s.inventoryId) === String(m.id) && s.productType === 'membresia'));
-  const allCuentas = [...soldGames, ...soldPaquetes, ...soldMembresias];
-  return allCuentas.filter(c => {
-    const codesRaw = c.cod_2_pasos || c.codigo2fa || '';
-    const count = codesRaw.split('\n').map(x => x.trim()).filter(x => x.length > 0).length;
-    return count > 0 && count <= 3;
-  }).length;
-}
-function open2FANotifModal() {
-  const modal = document.getElementById('modal2FANotifOverlay');
-  const tbody = document.getElementById('body2FANotif');
-  if (!modal || !tbody) return;
-  const soldGames = (AppState.inventoryGames || []).filter(g => g.estado === 'Vendido' || AppState.sales.some(s => String(s.inventoryId) === String(g.id) && s.productType === 'game')).map(x => ({...x, _itemType: 'game'}));
-  const soldPaquetes = (AppState.paquetes || []).filter(p => p.estado === 'Vendido' || AppState.sales.some(s => String(s.inventoryId) === String(p.id) && s.productType === 'paquete')).map(x => ({...x, _itemType: 'paquete'}));
-  const soldMembresias = (AppState.membresias || []).filter(m => m.estado === 'Vendido' || AppState.sales.some(s => String(s.inventoryId) === String(m.id) && s.productType === 'membresia')).map(x => ({...x, _itemType: 'membresia'}));
-  const allCuentas = [...soldGames, ...soldPaquetes, ...soldMembresias];
-  const low2FACuentas = allCuentas.filter(c => {
-    const codesRaw = c.cod_2_pasos || c.codigo2fa || '';
-    const count = codesRaw.split('\n').map(x => x.trim()).filter(x => x.length > 0).length;
-    return count > 0 && count <= 3;
-  });
-  tbody.innerHTML = '';
-  if (low2FACuentas.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">No hay cuentas con pocos códigos.</td></tr>';
-  } else {
-    low2FACuentas.forEach(c => {
-      const codesRaw = c.cod_2_pasos || c.codigo2fa || '';
-      const count = codesRaw.split('\n').map(x => x.trim()).filter(x => x.length > 0).length;
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td style="padding: 12px 10px;"><span class="id-badge">${c.id}</span></td>
-        <td class="fw-bold" style="color:var(--text-light); padding: 12px 10px;">${c.juego || c.nombre || c.tipo || 'N/A'}</td>
-        <td style="color:var(--accent-cyan); padding: 12px 10px;">${c.correo || 'N/A'}</td>
-        <td style="text-align:center; padding: 12px 10px;">
-          <div class="badge-2fa ${count === 0 ? 'zero' : 'low'}" style="margin: 0 auto; min-width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: bold; background:${count === 0 ? 'rgba(244,63,94,0.1)' : 'rgba(245,158,11,0.1)'}; color:${count === 0 ? '#f43f5e' : '#f59e0b'}; border:1px solid ${count === 0 ? 'rgba(244,63,94,0.3)' : 'rgba(245,158,11,0.3)'};">
-            ${count}
-          </div>
-        </td>
-        <td style="padding: 12px 10px;">
-          <div style="display:flex; gap:5px; justify-content:center;">
-            <button class="action-btn-premium" style="width:32px; height:32px; padding:0; border-radius: 8px; background: rgba(0, 212, 255, 0.1); border: 1px solid rgba(0, 212, 255, 0.2); color: var(--accent-cyan);" onclick="close2FANotifModal(); open2FAModal('${c.id}', '${c._itemType}')" title="Ver/Eliminar códigos">
-              <i data-lucide="eye" style="width:16px; height:16px;"></i>
-            </button>
-          </div>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
-  modal.classList.add('show');
-  if (typeof lucide !== 'undefined') lucide.createIcons();
-}
-function close2FANotifModal() {
-  const modal = document.getElementById('modal2FANotifOverlay');
-  if (modal) modal.classList.remove('show');
-}
+
+
 // ================================================
 // BRIDGE GLOBAL (FASE 1.2 - REFORZADO)
 // Exponer funciones críticas al objeto window para 
@@ -1430,6 +1004,7 @@ const GlobalBridge = {
   addToCart,
   toggleCart,
   renderCart,
+  updateCartBadge,
   openCheckout,
   closeCheckout,
   confirmCheckout,
@@ -1481,6 +1056,7 @@ const GlobalBridge = {
   cargarPlantillaSeleccionada,
   actualizarPanelVariables,
   // Gestión de Usuarios y Otros
+  renderGestionUsuarios,
   openModalUsuario,
   closeModalUsuario,
   saveUsuario,
