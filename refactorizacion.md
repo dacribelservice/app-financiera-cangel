@@ -97,7 +97,10 @@
 - [x] **Reparación de Sugerencias:** Inyectada `selectGameSuggestion` al `GlobalBridge` (Resuelto ReferenceError).
 - [x] **Sincronización de Analytics:** Inyectadas funciones de ranking, filtrado de clientes, gestión de listas y paginación.
 - [x] **Gestión de Balance (Finalizado):** Extraídas funciones de charts, PDF, Excel y gastos del archivo `app.js`.
-- [x] **Limpieza de Residuos:** Eliminada declaración duplicada de `processPDF` y restos malformados en `app.js` (Resuelto SyntaxError).
+- [x] **Gestión de Dashboard (Finalizado):** Extraída lógica de KPIs a `ui/dashboard.js`.
+- [x] **Gestión de Análisis (IA) (Finalizado):** Extraído el motor de PS Store y Gemini a `ui/analysis.js`.
+- [x] **Saneamiento del Bridge:** Eliminada duplicidad de `renderCuentasPSN` e inyectadas funciones de análisis al objeto `window`.
+- [x] **Limpieza de Residuos:** Eliminada declaración duplicada de `processPDF` y restos malformados en `app.js`.
 - [ ] **Garantía de Helpers de UI:** Inyectar `showPremiumAlert` y `showPremiumPrompt`.
 
 ---

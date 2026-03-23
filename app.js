@@ -84,13 +84,22 @@ import {
   closeIdealStockModal, renderIdealStockAudit, downloadAuditExcel,
   updateIdealStockValue, processPDF
 } from './ui/balance.js';
+import { updateDashboard, renderTop5 } from './ui/dashboard.js';
+import { 
+  handleExtractAI, renderGameCard, addToCatalogFromAnalysis, 
+  addEmptyRow, renderAnalysisTable, editAnalysisImage, 
+  updateAnalysisData, deleteAnalysis, updateGlobalTRM 
+} from './ui/analysis.js';
 
 export {
   updateBalance, calculateBalances, renderExpenses, addExpense,
   eliminarGasto, prepararEdicionGasto, addIngreso, renderIngresos,
   eliminarIngreso, prepararEdicionIngreso, openIdealStockModal,
   closeIdealStockModal, renderIdealStockAudit, downloadAuditExcel,
-  updateIdealStockValue, processPDF
+  updateIdealStockValue, processPDF, updateDashboard, renderTop5,
+  handleExtractAI, renderGameCard, addToCatalogFromAnalysis, 
+  addEmptyRow, renderAnalysisTable, editAnalysisImage, 
+  updateAnalysisData, deleteAnalysis, updateGlobalTRM
 };
 import { sanitizeInventoryDuplicates } from './utils/sanitizer.js';
 /* ============================================================ */
@@ -274,444 +283,12 @@ function switchTab(tabName) {
   if (tabName === 'analytics') initAnalytics();
   if (window.lucide) window.lucide.createIcons();
 }
-/* ============================================================ */
-/* 2. DASHBOARD & KPIS                     */
-/* ============================================================ */
-export function updateDashboard() {
-  const ingresos = AppState.sales
-    .filter(v => !v.esta_anulada)
-    .reduce((sum, v) => sum + (parseFloat(v.venta) || parseFloat(v.precio) || 0), 0);
-  // Todo sumado en COP
-  const costosJuegos = AppState.inventoryGames.reduce((sum, g) => sum + (parseFloat(g.costoCop) || 0), 0);
-  const costosCodes = AppState.inventoryCodes.reduce((sum, c) => sum + (parseFloat(c.costoCop) || 0), 0);
-  const costosPaquetes = AppState.paquetes.reduce((sum, p) => sum + (parseFloat(p.costoCop) || 0), 0);
-  const costosMembresias = AppState.membresias.reduce((sum, m) => sum + (parseFloat(m.costoCop) || 0), 0);
-  const gastosExtras = AppState.expenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
-  const costos = costosJuegos + costosCodes + costosPaquetes + costosMembresias;
-  const neta = ingresos - (costos + gastosExtras);
-  const kpiIngresos = document.getElementById('kpiIngresos');
-  const kpiGanancia = document.getElementById('kpiGanancia');
-  kpiIngresos.textContent = `$${ingresos.toLocaleString('es-CO')}`;
-  kpiIngresos.classList.add('kpi-glow');
-  document.getElementById('kpiCostos').textContent = `$${(costos + gastosExtras).toLocaleString('es-CO')}`;
-  // Desglose
-  const elCostosJuegos = document.getElementById('kpiCostosJuegos');
-  if (elCostosJuegos) elCostosJuegos.textContent = `$${costosJuegos.toLocaleString('es-CO')}`;
-  const elCostosPaquetes = document.getElementById('kpiCostosPaquetes');
-  if (elCostosPaquetes) elCostosPaquetes.textContent = `$${costosPaquetes.toLocaleString('es-CO')}`;
-  const elCostosMembresias = document.getElementById('kpiCostosMembresias');
-  if (elCostosMembresias) elCostosMembresias.textContent = `$${costosMembresias.toLocaleString('es-CO')}`;
-  const elCostosCodigos = document.getElementById('kpiCostosCodigos');
-  if (elCostosCodigos) elCostosCodigos.textContent = `$${costosCodes.toLocaleString('es-CO')}`;
-  const elGastosExtras = document.getElementById('kpiGastosExtras');
-  if (elGastosExtras) elGastosExtras.textContent = `$${gastosExtras.toLocaleString('es-CO')}`;
-  kpiGanancia.textContent = `$${neta.toLocaleString('es-CO')}`;
-  kpiGanancia.classList.add('kpi-glow');
-  document.getElementById('kpiJuegos').textContent = AppState.catalog.length;
-  // Actualizar Socios (Removido según solicitud)
-  renderTop5();
-  updateDashboardCharts();
-  if (typeof renderClientHistory === 'function') {
-    renderClientHistory();
-  }
-}
-function renderTop5() {
-  const container = document.getElementById('topGamesList');
-  if (!container) return;
-  const counts = {};
-  AppState.sales.forEach(v => {
-    // Omitir anuladas y registros parciales de co-ventas para no duplicar el contador de productos
-    if (v.esta_anulada || v.isPartiallyPaid) return; 
-    counts[v.juego] = (counts[v.juego] || 0) + 1;
-  });
-  const sorted = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
-  if (sorted.length === 0) {
-    container.innerHTML = '<div class="stat-item"><p style="color:var(--text-muted); font-size:0.8rem">Esperando ventas...</p></div>';
-    return;
-  }
-  const maxVal = sorted[0]?.[1] || 1;
-  container.innerHTML = '';
-  sorted.forEach(([name, count], i) => {
-    const pct = (count / maxVal) * 100;
-    const item = document.createElement('div');
-    item.className = 'stat-item';
-    item.innerHTML = `
-      <div class="stat-header">
-        <span>${i + 1}. ${name}</span>
-        <span>${count} vtas</span>
-      </div>
-      <div class="progress-track">
-        <div class="progress-fill" style="width: ${pct}%"></div>
-      </div>
-    `;
-    container.appendChild(item);
-  });
-}
-/* ============================================================ */
-/* 3. MÓDULO ANÃLISIS (PS STORE)           */
-/* ============================================================ */
-async function handleExtractAI() {
-  const url = document.getElementById('urlAI').value.trim();
-  if (!url) return;
-  const status = document.getElementById('extractStatus');
-  status.innerHTML = `<span class="status-loading"></span> Extrayendo con IA (Gemini)...`;
-  try {
-    const data = await apiFetchPSDetails(url);
-    console.log('[IA-Extract] Raw Data:', data);
-    if (data.error) throw new Error(data.error);
-    if (!data.title) throw new Error('No se pudo extraer el título del juego');
-    // Normalizar datos de IA para que coincidan con la estructura de la aplicación
-    const normalizedData = {
-      nombre: data.title || 'Juego Desconocido',
-      imagen: data.image_url || '',
-      precioBase: parseFloat((data.base_price || "0").replace(/[^\d.]/g, '')),
-      precioSale: parseFloat((data.discount_price || data.base_price || "0").replace(/[^\d.]/g, '')),
-      ps4: data.ps4 !== undefined ? data.ps4 : true,
-      ps5: data.ps5 !== undefined ? data.ps5 : true,
-      raw: data
-    };
-    processExtractionResult(normalizedData, url);
-    renderGameCard(data);
-    status.innerHTML = `<span style="color:var(--accent-cyan)">âœ¨ Completado (IA)</span>`;
-  } catch (e) {
-    console.error('[IA-Error]', e);
-    status.innerHTML = `<span style="color:var(--accent-red)">âœ— Error: ${e.message}</span>`;
-  }
-}
-function processExtractionResult(data, url) {
-  const existingIndex = AppState.analysis.findIndex(a => a.nombre === data.nombre);
-  const actualSale = (data.precioSale && data.precioSale > 0) ? data.precioSale : data.precioBase;
-  const isNew = existingIndex < 0;
-  const oldItem = !isNew ? AppState.analysis[existingIndex] : null;
-  // Calculamos la compra: 1. Inventario histórico, 2. Valor previo, 3. Precio Sale actual
-  let compVal = actualSale;
-  if (!isNew && oldItem.compra > 0) compVal = oldItem.compra;
-  // Buscar si hay algo más barato en inventario ahora mismo
-  const inventoryMinPrices = {};
-  (AppState.inventoryGames || []).forEach(g => {
-    const title = (g.juego || '').toUpperCase().trim();
-    const price = parseFloat(g.costoUsd);
-    if (!isNaN(price) && title) {
-      if (!inventoryMinPrices[title] || price < inventoryMinPrices[title]) {
-        inventoryMinPrices[title] = price;
-      }
-    }
-  });
-  const titleMatch = (data.nombre || '').toUpperCase().trim();
-  if (inventoryMinPrices[titleMatch] !== undefined) compVal = inventoryMinPrices[titleMatch];
-  const costVal = Math.round(compVal * AppState.exchangeRate);
-  const v4Val = !isNew ? oldItem.venta4 : 0;
-  const pMinVal = v4Val > 0 ? Math.round(costVal / v4Val) : 0;
-  const psnVal = Math.round(actualSale * AppState.exchangeRate);
-  const analysisItem = {
-    id: !isNew ? oldItem.id : Date.now(),
-    url: url,
-    image: data.imagen || 'https://via.placeholder.com/150',
-    nombre: data.nombre,
-    precioBase: data.precioBase || 0,
-    sale: actualSale || 0,
-    ps4: data.ps4 !== undefined ? data.ps4 : true,
-    ps5: data.ps5 !== undefined ? data.ps5 : true,
-    compra: compVal,
-    costo: costVal,
-    venta4: v4Val,
-    pMinimo: pMinVal,
-    ps4Price: !isNew ? oldItem.ps4Price : 0,
-    ps5Price: !isNew ? oldItem.ps5Price : 0,
-    psnUsd: psnVal,
-    color: !isNew ? oldItem.color : '-'
-  };
-  if (!isNew) AppState.analysis[existingIndex] = analysisItem;
-  else AppState.analysis.unshift(analysisItem);
-  renderAnalysisTable();
-  saveLocal();
-}
-function renderGameCard(data, size = 'medium') {
-  const container = document.getElementById('extractionCardContainer');
-  if (!container) return;
-  const isXS = size === 'xs';
-  const isSmall = size === 'small';
-  const isMedium = size === 'medium';
-  // Ahorro
-  const savingsHtml = data.discount_percentage
-    ? `<span style="color:#10b981; font-size:${isXS ? '0.6rem' : '0.8rem'}; font-weight:800; background:rgba(16,185,129,0.1); padding:2px 6px; border-radius:4px;">
-        -${data.discount_percentage.replace(/[^0-9]/g, '')}%
-       </span>`
-    : '';
-  // Versiones
-  const limit = isXS ? 0 : (isSmall ? 2 : 4);
-  const versionsHtml = data.versions && limit > 0 ? data.versions.slice(0, limit).map(v => `
-    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:rgba(255,255,255,0.4); border-bottom:1px solid rgba(255,255,255,0.03);">
-      <span>${v.name.length > (isSmall ? 20 : 40) ? v.name.substring(0, isSmall ? 20 : 40) + '...' : v.name}</span>
-      <span style="color:#fff; font-weight:600;">${v.price}</span>
-    </div>
-  `).join('') : '';
-  // Layout Dinámico
-  let cardStyle = `background:#0f172a; border:1px solid rgba(255,255,255,0.1); border-radius:12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-family:'Inter',sans-serif; position:relative; overflow:hidden; transition: all 0.2s ease;`;
-  if (isXS) {
-    cardStyle += `display:flex; align-items:center; gap:10px; padding:8px 12px; max-width:320px;`;
-  } else if (isSmall) {
-    cardStyle += `display:grid; grid-template-columns:80px 1fr; gap:15px; padding:15px; max-width:400px;`;
-  } else {
-    cardStyle += `display:flex; flex-direction:column; gap:12px; padding:20px; max-width:480px;`;
-  }
-  container.innerHTML = `
-    <div class="card-premium-ai" style="${cardStyle}">
-      <img src="${data.image_url || 'https://via.placeholder.com/80'}" 
-           style="width:${isXS ? '35px' : (isSmall ? '80px' : '100%')}; height:${isXS ? '35px' : (isSmall ? '80px' : '150px')}; border-radius:8px; object-fit:cover; flex-shrink:0;">
-      <div style="flex:1; min-width:0;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <h2 style="color:#fff; font-size:${isXS ? '0.85rem' : '1.1rem'}; margin:0; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${data.title || 'Juego'}</h2>
-          ${!isMedium ? savingsHtml : ''}
-        </div>
-        ${isMedium ? `<p style="color:var(--accent-cyan); font-size:0.8rem; margin:2px 0; font-weight:700;">${data.publisher || 'Publisher'}</p>` : ''}
-        <!-- Etiquetas de Versión -->
-        <div style="display: flex; gap: 6px; margin: 8px 0;">
-          ${data.ps4 && data.ps5 ?
-      `<span style="background:rgba(0,112,204,0.15); color:#00a3ff; padding:2px 10px; border-radius:6px; font-size:0.65rem; font-weight:900; border:1px solid rgba(0,163,255,0.3); text-transform:uppercase; letter-spacing:0.5px;">PS4 | PS5</span>` :
-      data.ps5 ?
-        `<span style="background:rgba(255,255,255,0.1); color:#fff; padding:2px 10px; border-radius:6px; font-size:0.65rem; font-weight:900; border:1px solid rgba(255,255,255,0.2); text-transform:uppercase; letter-spacing:0.5px;">PS5 Only</span>` :
-        data.ps4 ?
-          `<span style="background:rgba(0,112,204,0.1); color:rgba(255,255,255,0.8); padding:2px 10px; border-radius:6px; font-size:0.65rem; font-weight:900; border:1px solid rgba(255,255,255,0.2); text-transform:uppercase; letter-spacing:0.5px;">PS4 Only</span>` : ''
-    }
-        </div>
-        <div style="display:flex; align-items:baseline; gap:8px; margin-top:${isXS ? '0' : '4px'};">
-          <span style="color:#fff; font-size:${isXS ? '1rem' : '1.6rem'}; font-weight:900;">${data.discount_price || data.base_price || '---'}</span>
-          ${isMedium && data.discount_price && data.base_price !== data.discount_price ? `<span style="color:rgba(255,255,255,0.2); text-decoration:line-through; font-size:1rem;">${data.base_price}</span>` : ''}
-          ${isMedium ? savingsHtml : ''}
-        </div>
-        ${!isXS && versionsHtml ? `<div style="margin-top:5px; border-top:1px solid rgba(255,255,255,0.05);">${versionsHtml}</div>` : ''}
-      </div>
-    </div>
-  `;
-  AppState.lastAIExtract = data;
-}
-async function addToCatalogFromAnalysis() {
-  if (AppState.analysis.length === 0) {
-    await showPremiumAlert('Catálogo', 'No hay datos para agregar', 'info');
-    return;
-  }
-  const tbody = document.getElementById('tableBody');
-  const rows = tbody.querySelectorAll('tr');
-  rows.forEach((row, index) => {
-    const cells = row.querySelectorAll('td');
-    const item = AppState.analysis[index];
-    // Extraer valores editables de la tabla (Precio Compra, Venta, etc)
-    // Nota: Las celdas son: 0:enlace, 1:img, 2:nombre, 3:base, 4:sale, 5:compra, 6:costo...
-    const precioComp = parseFloat(cells[5].textContent.replace('$', '')) || 0;
-    const precioVentaPS4 = parseFloat(cells[9].textContent.replace('$', '')) || 0;
-    const precioVentaPS5 = parseFloat(cells[10].textContent.replace('$', '')) || 0;
-    // Buscar si el juego ya existe en el catálogo para actualizar precios
-    const catalogIndex = AppState.catalog.findIndex(c => c.nombre.trim().toLowerCase() === item.nombre.trim().toLowerCase());
-    if (catalogIndex >= 0) {
-      // Actualizar precios existentes
-      AppState.catalog[catalogIndex].precio_ps4 = precioVentaPS4 || item.sale;
-      AppState.catalog[catalogIndex].precio_ps5 = precioVentaPS5 || item.sale;
-      AppState.catalog[catalogIndex].image = item.image; // Actualizar imagen también
-    } else {
-      // Añadir nuevo
-      AppState.catalog.push({
-        id: Date.now() + index,
-        nombre: item.nombre,
-        precio_ps4: precioVentaPS4 || item.sale,
-        precio_ps5: precioVentaPS5 || item.sale,
-        image: item.image
-      });
-    }
-  });
-  // Comentado para no borrar los datos del análisis, dejarlos ahí para actualización manual
-  // AppState.analysis = [];
-  renderAnalysisTable();
-  renderCatalog();
-  saveLocal();
-  await showPremiumAlert("Catálogo", "Juegos agregados/actualizados en el catálogo correctamente", "success");
-}
-function addEmptyRow() {
-  AppState.analysis.unshift({
-    id: Date.now(),
-    image: 'https://via.placeholder.com/150',
-    nombre: 'Nuevo Juego',
-    precioBase: 0,
-    sale: 0,
-    ps4: true,
-    ps5: true,
-    compra: 0,
-    costo: 0,
-    venta4: 0,
-    pMinimo: 0,
-    ps4Price: 0,
-    ps5Price: 0,
-    psnUsd: 0,
-    color: '-'
-  });
-  renderAnalysisTable();
-  saveLocal();
-}
-export function renderAnalysisTable() {
-  const tbody = document.getElementById('tableBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  const formatterCOP = new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0
-  });
-  // 1. Calcular precios mínimos del inventario para cruzar datos
-  const inventoryMinPrices = {};
-  (AppState.inventoryGames || []).forEach(g => {
-    const title = (g.juego || '').toUpperCase().trim();
-    const price = parseFloat(g.costoUsd);
-    if (!isNaN(price) && title) {
-      if (!inventoryMinPrices[title] || price < inventoryMinPrices[title]) {
-        inventoryMinPrices[title] = price;
-      }
-    }
-  });
-  // Definir orden de colores: Sin Color -> Verde -> Amarillo -> Rojo
-  const colorOrder = { '-': 0, 'Verde': 1, 'Amarillo': 2, 'Rojo': 3 };
-  // Ordenar AppState.analysis antes de renderizar
-  AppState.analysis.sort((a, b) => {
-    const valA = colorOrder[a.color] || 0;
-    const valB = colorOrder[b.color] || 0;
-    return valA - valB;
-  });
-  AppState.analysis.forEach((row, i) => {
-    const tr = document.createElement('tr');
-    // Asignar clase de color pastel si aplica
-    if (row.color === 'Verde') tr.classList.add('row-pastel-verde');
-    else if (row.color === 'Amarillo') tr.classList.add('row-pastel-amarillo');
-    else if (row.color === 'Rojo') tr.classList.add('row-pastel-rojo');
-    // Buscar precio mínimo histórico en inventario para este nombre
-    const titleMatch = (row.nombre || '').toUpperCase().trim();
-    const historicoInv = inventoryMinPrices[titleMatch];
-    // Sincronización PROFUNDA: Siempre asegurar que Costo = Compra * Divisa
-    if (historicoInv !== undefined) {
-      row.compra = historicoInv;
-    }
-    // Forzamos el recálculo SIEMPRE para evitar el efecto "congelado"
-    row.costo = Math.round((row.compra || 0) * AppState.exchangeRate);
-    // Recalcular P. Mínimo también para que sea consistente
-    const numVentas = parseFloat(row.venta4) || 0;
-    row.pMinimo = numVentas > 0 ? Math.round(row.costo / numVentas) : 0;
-    const valorCompraVisual = row.compra || 0;
-    tr.innerHTML = `
-      <td class="row-number-header">${i + 1}</td>
-      <td class="img-cell">
-        <div class="analysis-img-container">
-          <img src="${row.image}" width="32" height="32" id="img-analysis-${row.id}">
-          <button class="btn-edit-img" onclick="editAnalysisImage(${row.id})">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-          </button>
-        </div>
-      </td>
-      <td contenteditable="true" onblur="updateAnalysisData(${row.id}, 'nombre', this.innerText)">${row.nombre}</td>
-      <td contenteditable="true" onblur="updateAnalysisData(${row.id}, 'precioBase', this.innerText)">$${row.precioBase}</td>
-      <td contenteditable="true" onblur="updateAnalysisData(${row.id}, 'sale', this.innerText)" style="color:var(--accent-green)">$${row.sale}</td>
-      <td contenteditable="true" onblur="updateAnalysisData(${row.id}, 'compra', this.innerText)" style="color: ${historicoInv !== undefined ? 'var(--accent-cyan)' : 'inherit'} font-weight: ${historicoInv !== undefined ? 'bold' : 'normal'}">$${valorCompraVisual}</td>
-      <td contenteditable="true" onblur="updateAnalysisData(${row.id}, 'costo', this.innerText)">${formatterCOP.format(row.costo || 0)}</td>
-      <td contenteditable="true" onblur="updateAnalysisData(${row.id}, 'venta4', this.innerText)">${row.venta4 || 0}</td>
-      <td contenteditable="true" onblur="updateAnalysisData(${row.id}, 'pMinimo', this.innerText)">${formatterCOP.format(row.pMinimo || 0)}</td>
-      <td contenteditable="true" onblur="updateAnalysisData(${row.id}, 'ps4Price', this.innerText)" class="${row.ps4 ? '' : 'version-x'}">
-        ${row.ps4 ? '<i data-lucide="check-circle" style="color:var(--accent-green); width:14px; height:14px;"></i> ' + formatterCOP.format(row.ps4Price || 0) : '<i data-lucide="x-circle" style="color:var(--accent-red); width:14px; height:14px;"></i>'}
-      </td>
-      <td contenteditable="true" onblur="updateAnalysisData(${row.id}, 'ps5Price', this.innerText)" class="${(row.ps5 || row.ps4) ? '' : 'version-x'}">
-        ${(row.ps5 || row.ps4) ? '<i data-lucide="check-circle" style="color:var(--accent-green); width:14px; height:14px;"></i> ' + formatterCOP.format(row.ps5Price || 0) : '<i data-lucide="x-circle" style="color:var(--accent-red); width:14px; height:14px;"></i>'}
-      </td>
-      <td contenteditable="true" onblur="updateAnalysisData(${row.id}, 'psnUsd', this.innerText)">${formatterCOP.format(row.psnUsd || 0)}</td>
-      <td>
-        <select class="color-select-premium" onchange="updateAnalysisData(${row.id}, 'color', this.value)">
-          <option value="-" ${(!row.color || row.color === '-') ? 'selected' : ''}>-</option>
-          <option value="Verde" ${row.color === 'Verde' ? 'selected' : ''}>Verde</option>
-          <option value="Amarillo" ${row.color === 'Amarillo' ? 'selected' : ''}>Amarillo</option>
-          <option value="Rojo" ${row.color === 'Rojo' ? 'selected' : ''}>Rojo</option>
-        </select>
-      </td>
-      <td><button class="btn-icon-only" onclick="deleteAnalysis(${row.id})"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button></td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-async function editAnalysisImage(id) {
-  const url = await showPremiumPrompt('Imagen del Juego', 'Pega el enlace de la imagen a continuación:', 'URL de la Imagen:');
-  if (url) {
-    const item = AppState.analysis.find(a => a.id === id);
-    if (item) {
-      item.image = url;
-      renderAnalysisTable();
-      saveLocal();
-    }
-  }
-}
-function updateAnalysisData(id, field, val) {
-  const item = AppState.analysis.find(a => a.id === id);
-  if (item) {
-    let cleanVal = val.replace(/[^\d.]/g, '').trim();
-    const numericFields = ['precioBase', 'sale', 'compra', 'costo', 'venta4', 'pMinimo', 'ps4Price', 'ps5Price', 'psnUsd'];
-    const oldVal = item[field]; // Para auditoría
-    if (numericFields.includes(field)) {
-      let numVal = parseFloat(cleanVal) || 0;
-      if (['venta4'].includes(field)) numVal = Math.round(numVal);
-      item[field] = numVal;
-      // RECALCULAR DEPENDENCIAS
-      if (field === 'compra' || item.costo === 0) {
-        item.costo = Math.round(item.compra * AppState.exchangeRate);
-      }
-      if (field === 'sale' || item.psnUsd === 0) {
-        item.psnUsd = Math.round(item.sale * AppState.exchangeRate);
-      }
-      if (['compra', 'costo', 'venta4'].includes(field) || item.pMinimo === 0) {
-        const numVentas = parseFloat(item.venta4) || 0;
-        item.pMinimo = numVentas > 0 ? Math.round(item.costo / numVentas) : 0;
-      }
-    } else {
-      item[field] = val;
-    }
-    if (typeof logEvent === 'function') {
-      logEvent('Catálogo: Análisis Modificado', `Juego: ${item.nombre} (ID: ${id}) | Campo: ${field} | Valor: ${val}`);
-    }
-    renderAnalysisTable();
-    saveLocal();
-  }
-}
-function deleteAnalysis(id) {
-  showDeleteConfirmModal("¿Estás seguro de que deseas eliminar este análisis?", () => {
-    const aToDelete = AppState.analysis.find(a => a.id === id);
-    if (aToDelete && typeof logEvent === 'function') {
-      logEvent('Catálogo: Análisis Eliminado', `ID: ${id} | Juego: ${aToDelete.nombre}`);
-    }
-    AppState.analysis = AppState.analysis.filter(a => a.id !== id);
-    renderAnalysisTable();
-    saveLocal();
-    if (typeof showToast === 'function') showToast("Registro de análisis eliminado", "info");
-  });
-}
-// -€-€-€-€-€ Sincronización Global de TRM -€-€-€-€-€
-function updateGlobalTRM(val) {
-  const trm = parseFloat(val) || 0;
-  AppState.exchangeRate = trm;
-  // Sync all TRM inputs in the app
-  const inputs = ['exchangeRate', 'analysisExchangeRate'];
-  inputs.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = trm;
-  });
-  // Recalcular automáticamente todos los costos, precios mínimos y PSN en la tabla de análisis
-  AppState.analysis.forEach(item => {
-    item.costo = Math.round((item.compra || 0) * trm);
-    const numVentas = parseFloat(item.venta4) || 0;
-    item.pMinimo = numVentas > 0 ? Math.round(item.costo / numVentas) : 0;
-    item.psnUsd = Math.round((item.sale || 0) * trm);
-  });
-  // Re-render components that depend on TRM
-  if (AppState.activeTab === 'dashboard') updateDashboard();
-  if (AppState.activeTab === 'analisis') renderAnalysisTable();
-}
+
+/* --- Módulo de Análisis e IA movido a ui/analysis.js --- */
 /* ============================================================ */
 /* 4. MÓDULO CATÃLOGO & ECOMMERCE          */
 /* ============================================================ */
-function renderCatalog() {
+export function renderCatalog() {
   const grid = document.getElementById('catalogGrid');
   grid.innerHTML = '';
   AppState.catalog.forEach(game => {
@@ -1752,6 +1329,8 @@ const GlobalBridge = {
   doLogin,
   doLogout,
   recuperarPassword,
+  updateDashboard,
+  renderTop5,
   // Ventas (Modal y Filas)
   openModalVenta,
   closeModalVenta,
@@ -1815,7 +1394,7 @@ const GlobalBridge = {
   renderInventoryJuegos,
   editGameInventory,
   openModalHistorialVentas,
-  renderCuentasPSN,
+  // renderCuentasPSN declarada anteriormente, eliminamos duplicado aquí
   toggleGameStatus,
   deleteGameInventory,
   deletePaquete,
@@ -1868,11 +1447,15 @@ const GlobalBridge = {
   switchBitacoraTab,
   renderBitacoraEventos,
   confirmarLimpiezaDatos,
-  // Análisis de Precios (PS Store)
-  updateGlobalTRM,
+  deleteAnalysis,
+  handleExtractAI,
+  renderGameCard,
+  addToCatalogFromAnalysis,
+  addEmptyRow,
+  renderAnalysisTable,
   editAnalysisImage,
   updateAnalysisData,
-  deleteAnalysis,
+  updateGlobalTRM,
   // Analytics y Clientes
   initAnalytics,
   renderTopPlataformas,
