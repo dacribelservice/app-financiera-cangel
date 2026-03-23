@@ -1,4 +1,4 @@
-/* ================================================
+﻿/* ================================================
    CANGEL GAMES ERP - Gestion Integral (V13.0)
    7 Modulos - Roles - Ecommerce - IA & Hosting
    ================================================ */
@@ -98,6 +98,9 @@ import {
   addEmptyRow, renderAnalysisTable, editAnalysisImage, 
   updateAnalysisData, deleteAnalysis, updateGlobalTRM 
 } from './ui/analysis.js';
+import { 
+  logEvent, renderBitacoraEventos, switchBitacoraTab, confirmarLimpiezaDatos 
+} from './ui/bitacora.js';
 
 export {
   updateBalance, calculateBalances, renderExpenses, addExpense,
@@ -107,7 +110,8 @@ export {
   updateIdealStockValue, processPDF, updateDashboard, renderTop5,
   handleExtractAI, renderGameCard, addToCatalogFromAnalysis, 
   addEmptyRow, renderAnalysisTable, editAnalysisImage, 
-  updateAnalysisData, deleteAnalysis, updateGlobalTRM
+  updateAnalysisData, deleteAnalysis, updateGlobalTRM,
+  logEvent, renderBitacoraEventos, switchBitacoraTab, confirmarLimpiezaDatos
 };
 import { sanitizeInventoryDuplicates } from './utils/sanitizer.js';
 /* ============================================================ */
@@ -221,35 +225,7 @@ function getFirstAllowedTab(user) {
 /* ============================================================ */
 /* 1.1 MOTOR DE BITÃCORA (AUDIT LOG)       */
 /* ============================================================ */
-export function logEvent(accion, detalles) {
-  const user = AppState.currentUser;
-  const userName = user ? user.nombre : 'Sistema';
-  const now = new Date();
-  // Usar formato 24h para facilitar ordenamiento y claridad
-  const formattedTime = now.toLocaleTimeString('es-CO', {
-    timeZone: 'America/Bogota',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  });
-  const formattedDate = now.toLocaleDateString('es-CO', {
-    timeZone: 'America/Bogota',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
-  const logEntry = {
-    id: 'log-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
-    fechaHora: `${formattedTime} | ${formattedDate}`,
-    usuarioNombre: userName,
-    accion: accion,
-    detalles: detalles,
-    timestamp: now.getTime()
-  };
-  AppState.auditLog.unshift(logEntry);
-  // Persistencia automática
-  saveLocal();
-}
+/* --- Módulo de Bitácora movido a ui/bitacora.js --- */
 function initTabs() {
   const tabs = document.querySelectorAll('.browser-tab');
   tabs.forEach(tab => {
@@ -449,46 +425,7 @@ async function processSyncQueue() {
 }
 // NOTA: Esta funcionalidad de limpieza es TEMPORAL para fase de desarrollo/pruebas.
 // No se incluirá en la versión final de producción.
-function confirmarLimpiezaDatos() {
-  showDeleteConfirmModal(
-    "âš ï¸ ADVERTENCIA CRÃTICA: ¿Estás seguro de que quieres limpiar todos los datos de prueba tanto LOCALES como en la NUBE?\n\nSe borrarán permanentemente ventas e inventario en Supabase y el navegador.",
-    async () => {
-      console.log('--- Iniciando limpieza profunda (LOCAL + CLOUD) ---');
-      try {
-        const result = await apiClearCloudData();
-        if (result && result.success) {
-          console.log('âœ… Nube saneada exitosamente. Procediendo con limpieza local...');
-        } else {
-          throw new Error('El servidor respondió pero no confirmó el éxito.');
-        }
-        AppState.sales = [];
-        AppState.inventory = [];
-        AppState.inventoryGames = [];
-        AppState.inventoryCodes = [];
-        AppState.paquetes = [];
-        AppState.membresias = [];
-        AppState.xboxInventory = [];
-        AppState.physicalInventory = [];
-        AppState.incomeExtra = [];
-        AppState.expenses = [];
-        AppState.auditLog = [];
-        AppState.analysis = [];
-        AppState.catalog = [];
-        AppState.clients = [];
-        AppState.raffles = [];
-        AppState.idealStock = {};
-        AppState.plantillas = {};
-        logEvent('LIMPIEZA TOTAL', 'Se ha realizado una limpieza completa de los datos tanto locales como en la nube.');
-        saveLocal();
-        await showPremiumAlert("Limpieza", "Limpieza total completada. La página se recargará para aplicar los cambios.", "success");
-        location.reload();
-      } catch (err) {
-        console.error('âŒ Error crítico en Hard Reset:', err.message);
-        await showPremiumAlert("Error en Limpieza", "No pudimos limpiar la nube. Por razones de seguridad, no borraremos tus datos locales hasta que la base de datos remota esté saneada.", "error");
-      }
-    }
-  );
-}
+/* --- Función de Limpieza movida a ui/bitacora.js --- */
 function loadLocal() {
   const data = storageLoad();
   if (data) {
@@ -853,36 +790,7 @@ function guardarLista(nombreKey, valor) {
 /* ============================================================ */
 /* 25. BITÁCORA Y GESTIÓN DE USUARIOS      */
 /* ============================================================ */
-function switchBitacoraTab(tabName) {
-  document.getElementById('btnTabVisorEventos').className = (tabName === 'visorEventos') ? 'btn-primary' : 'btn-secondary';
-  document.getElementById('btnTabGestionUsuarios').className = (tabName === 'gestionUsuarios') ? 'btn-primary' : 'btn-secondary';
-  document.getElementById('bitacoraVisorEventos').style.display = (tabName === 'visorEventos') ? 'block' : 'none';
-  document.getElementById('bitacoraGestionUsuarios').style.display = (tabName === 'gestionUsuarios') ? 'block' : 'none';
-}
-function renderBitacoraEventos() {
-  const tbody = document.getElementById('bodyBitacoraEventos');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  const showAnulaciones = document.getElementById('filterBitacoraAnulaciones')?.checked ?? true;
-  let logs = [...AppState.auditLog].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  if (!showAnulaciones) {
-    logs = logs.filter(log => !['Factura Anulada', 'Factura Reactivada', 'Pedido Anulado', 'Pedido Reactivado'].includes(log.accion));
-  }
-  if (logs.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color: var(--text-muted);">No hay eventos registrados...</td></tr>';
-    return;
-  }
-  logs.forEach(log => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${new Date(log.timestamp).toLocaleString('es-CO')}</td>
-      <td><strong>${log.usuarioNombre || 'Sistema'}</strong></td>
-      <td><span class="status-badge status-active">${log.accion}</span></td>
-      <td style="word-break: break-word;">${log.detalles}</td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
+/* --- Módulo de Bitácora (Render & Tabs) movido a ui/bitacora.js --- */
 /* --- Módulo de Gestión de Usuarios y 2FA movido a ui/users.js --- */
 
 /* ============================================================ */
@@ -1019,6 +927,8 @@ const GlobalBridge = {
   eliminarIngreso,
   prepararEdicionIngreso,
   // Bitácora
+  // Bitácora
+  logEvent,
   switchBitacoraTab,
   renderBitacoraEventos,
   confirmarLimpiezaDatos,

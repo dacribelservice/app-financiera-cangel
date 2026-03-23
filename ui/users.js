@@ -2,8 +2,9 @@
 /* USERS & 2FA MODULE - Gestión Administrativa y Seguridad      */
 /* ============================================================ */
 import { AppState } from '../core/store.js';
-import { saveLocal, logEvent } from '../app.js';
+import { saveLocal } from '../app.js';
 import { renderCuentasPSN } from './sales.js';
+import { logEvent } from './bitacora.js';
 import { showToast } from './modals.js';
 
 /**

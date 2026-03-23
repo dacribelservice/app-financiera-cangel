@@ -13,7 +13,8 @@ import {
 } from '../utils/validators.js';
 
 // Import de dependencias que aún residen en App.js o se han movido a módulos UI especializados
-import { saveLocal, logEvent, handleGameAutocomplete, isInventoryLow } from '../app.js';
+import { saveLocal, handleGameAutocomplete, isInventoryLow } from '../app.js';
+import { logEvent } from './bitacora.js';
 import { renderAnalysisTable } from './analysis.js';
 import { calculateBalances } from './balance.js';
 import { updateDashboard } from './dashboard.js';

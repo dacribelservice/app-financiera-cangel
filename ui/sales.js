@@ -5,9 +5,10 @@ import {
   getPaqueteSlots, getMembresiaSlots, renderInventoryJuegos
 } from './inventory.js';
 import {
-  logEvent, saveLocal, updateDashboard,
+  saveLocal, updateDashboard,
   asignarClienteALista
 } from '../app.js';
+import { logEvent } from './bitacora.js';
 import {
   showDeleteConfirmModal, showToast, showPremiumAlert, showPremiumPrompt
 } from './modals.js';
