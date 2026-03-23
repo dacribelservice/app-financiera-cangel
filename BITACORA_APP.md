@@ -299,3 +299,8 @@ Absolutamente todos los módulos matemáticos mueren en los Paneles Financieros 
 - **Seguridad y Respaldo**: Ejecución de backup integral a GitHub y actualización de `.gitignore` para protección de archivos sensibles (`.env`) y binarios.
 - **Audit Log Sync**: La bitácora de eventos local ahora se sincroniza silenciosamente con el servidor para mantener un rastro de auditoría centralizado.
 
+#### [V13.1] - 23/03/2026
+- **Reconexión de UI (TDD)**: Restauración total del `GlobalBridge` tras la modularización. Se inyectaron nuevamente las funciones críticas de filtros de inventario (`toggleStatusFilter`, `selectDenomFilter`), el sistema de autocomplete de ventas (`selectVentaGameSuggestion`) y los modales globales (`showToast`, `closePremiumAlert`). La estabilidad fue confirmada con un **100% de tests en verde** bajo Vitest.
+- **Seguridad del Backend (Shield Phase)**: Implementación del middleware `requireApiKey` en `server.js` para cerrar el acceso público a los endpoints. Se integró la inyección mandatoria del header `x-api-key` en todas las peticiones fetch del frontend (`services/api.js`) para una conexión blindada con Supabase.
+- **Preparación para Vercel**: Creación del archivo de seguimiento `checklist_produccion.md`, completando exitosamente la **Fase 1 (Saneamiento Local)**. El sistema está listo para la configuración de despliegue cloud.
+

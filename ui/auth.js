@@ -1,6 +1,6 @@
 import { AppState } from '../core/store.js';
 import { logEvent } from './bitacora.js';
-import { switchTab } from '../app.js';
+import { switchTab } from './navigation.js';
 import { saveLocal } from '../core/persistence.js';
 import { showPremiumAlert } from './modals.js';
 

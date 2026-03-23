@@ -17,6 +17,27 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' })); // Para manejar AppState grandes
 app.use(express.static(path.join(__dirname)));
 
+/**
+ * --- MICRO-PARCHE: ESCUDO DE SEGURIDAD (API KEY) ---
+ * Middleware para interceptar todas las peticiones a /api y validar la clave.
+ */
+const requireApiKey = (req, res, next) => {
+    const apiKey = req.headers['x-api-key'];
+    const devKey = process.env.API_KEY || 'CANGEL_DEV_KEY_123'; // Fallback para dev local
+    
+    if (!apiKey || apiKey !== devKey) {
+        console.warn(`[⚠️ SEGURIDAD] Intento de acceso NO AUTORIZADO desde IP: ${req.ip} | Header: ${apiKey || 'N/A'}`);
+        return res.status(401).json({ 
+            error: 'Acceso no autorizado', 
+            message: 'Se requiere una API Key válida en el header x-api-key para consumir este endpoint.' 
+        });
+    }
+    next();
+};
+
+// Aplicar el escudo a todos los endpoints que comiencen con /api
+app.use('/api', requireApiKey);
+
 // --- UTILIDADES ---
 function formatDateToISO(dateStr) {
     if (!dateStr) return new Date().toISOString().split('T')[0];

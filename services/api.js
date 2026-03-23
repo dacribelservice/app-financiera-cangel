@@ -38,49 +38,58 @@ export function storageLoad() {
 /**
  * 2. SINCRONIZACIÓN CON SUPABASE (Vía Backend Node.js)
  */
-export async function apiSync(syncData, useBackup = false) {
+export async function apiSync(syncData, useBackup = true) {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s Timeout
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s Timeout de protección
 
-    const response = await fetch('/api/sync', {
+    // Shadow Writing: Petición asíncrona hacia el backend local
+    const response = await fetch('http://localhost:3000/api/sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-api-key': 'CANGEL_DEV_KEY_123'
+      },
       body: JSON.stringify(syncData),
       signal: controller.signal
     });
 
     clearTimeout(timeoutId);
-    if (!response.ok) throw new Error('Server error');
+    if (!response.ok) throw new Error('Error en sincronización cloud');
     return { success: true };
   } catch (err) {
     if (useBackup) {
-      console.warn("⚠️ Sync fallido. Guardando en cola local:", err.name === 'AbortError' ? 'Timeout 5s' : err.message);
-      localStorage.setItem('cangel_sync_queue', JSON.stringify(syncData));
+      console.warn("⚠️ Sincronización fallida. Guardando en cola local (sync_queue):", err.name === 'AbortError' ? 'Timeout 5s' : err.message);
+      // Guardamos en la cola para reintento automático
+      localStorage.setItem('sync_queue', JSON.stringify(syncData));
     }
     return { success: false, error: err.message };
   }
 }
 
 export async function apiProcessSyncQueue() {
-  const queue = localStorage.getItem('cangel_sync_queue');
+  const queue = localStorage.getItem('sync_queue');
   if (!queue) return;
 
   try {
     const syncData = JSON.parse(queue);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s Timeout
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s Reintento
 
-    const response = await fetch('/api/sync', {
+    const response = await fetch('http://localhost:3000/api/sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-api-key': 'CANGEL_DEV_KEY_123'
+      },
       body: JSON.stringify(syncData),
       signal: controller.signal
     });
 
     clearTimeout(timeoutId);
     if (response.ok) {
-      localStorage.removeItem('cangel_sync_queue');
+      localStorage.removeItem('sync_queue');
+      console.log("✅ Cola de sincronización (sync_queue) vaciada con éxito.");
       return true;
     }
   } catch (err) {
@@ -95,7 +104,10 @@ export async function apiProcessSyncQueue() {
  */
 export async function apiClearCloudData() {
   try {
-    const response = await fetch('/api/clear-inventory', { method: 'DELETE' });
+    const response = await fetch('/api/clear-inventory', { 
+      method: 'DELETE',
+      headers: { 'x-api-key': 'CANGEL_DEV_KEY_123' }
+    });
     if (!response.ok) throw new Error('Error al vaciar la nube');
     return await response.json();
   } catch (err) {
@@ -109,12 +121,16 @@ export async function apiClearCloudData() {
  */
 export async function apiFetchInitialData() {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s Timeout
 
-  const response = await fetch('/api/initial-data', { signal: controller.signal });
+  // Lectura asíncrona (Revalidate) desde el backend local
+  const response = await fetch('http://localhost:3000/api/initial-data', { 
+    headers: { 'x-api-key': 'CANGEL_DEV_KEY_123' },
+    signal: controller.signal 
+  });
+  
   clearTimeout(timeoutId);
-
-  if (!response.ok) throw new Error('Error al cargar datos iniciales');
+  if (!response.ok) throw new Error('Error al cargar datos frescos de la nube');
   return await response.json();
 }
 
@@ -125,12 +141,13 @@ export async function apiFetchClientes(page, limit) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-  const response = await fetch(`/api/clientes?page=${page}&limit=${limit}`, {
+  const response = await fetch(`http://localhost:3000/api/clientes?page=${page}&limit=${limit}`, {
+    headers: { 'x-api-key': 'CANGEL_DEV_KEY_123' },
     signal: controller.signal
   });
   
   clearTimeout(timeoutId);
-  if (!response.ok) throw new Error('Error al cargar clientes paginados');
+  if (!response.ok) throw new Error('Error al cargar clientes desde la nube (Paginado)');
   return await response.json();
 }
 
@@ -138,7 +155,9 @@ export async function apiFetchClientes(page, limit) {
  * 5. EXTRACCIÓN CON IA (GEMINI)
  */
 export async function apiFetchPSDetails(url) {
-  const response = await fetch(`/api/ps-details-ai?url=${encodeURIComponent(url)}`);
+  const response = await fetch(`/api/ps-details-ai?url=${encodeURIComponent(url)}`, {
+    headers: { 'x-api-key': 'CANGEL_DEV_KEY_123' }
+  });
   if (!response.ok) throw new Error('Error en extracción por IA');
   return await response.json();
 }

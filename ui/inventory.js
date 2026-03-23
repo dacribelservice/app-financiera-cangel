@@ -1146,3 +1146,48 @@ export function selectGameSuggestion(name) {
   const nextInput = document.getElementById('invJuegoCorreo');
   if (nextInput) nextInput.focus();
 }
+
+/**
+ * --- MÓDULO: FILTROS DROPDOWN (PREMIUM) ---
+ */
+
+export function toggleStatusFilter(event) {
+  if (event) event.stopPropagation();
+  const list = document.getElementById('statusOptionsList');
+  if (list) {
+    // Cerrar otros dropdowns primero
+    const allDropdowns = document.querySelectorAll('.dropdown-options');
+    allDropdowns.forEach(d => { if (d !== list) d.classList.remove('show'); });
+    list.classList.toggle('show');
+  }
+}
+
+
+export function toggleDenomFilter(event) {
+  if (event) event.stopPropagation();
+  const list = document.getElementById('denomOptionsList');
+  if (list) {
+    const allDropdowns = document.querySelectorAll('.dropdown-options');
+    allDropdowns.forEach(d => { if (d !== list) d.classList.remove('show'); });
+    list.classList.toggle('show');
+  }
+}
+
+export function selectDenomFilter(event, value, text) {
+  if (event) event.stopPropagation();
+  const filterInput = document.getElementById('filterDenom');
+  const selectedText = document.getElementById('denomSelectedText');
+  const list = document.getElementById('denomOptionsList');
+  
+  if (filterInput) filterInput.value = value;
+  if (selectedText) selectedText.textContent = text;
+  if (list) list.classList.remove('show');
+  
+  renderInventoryCodigos();
+}
+
+// Cerrar dropdowns al hacer clic fuera
+document.addEventListener('click', () => {
+  const allDropdowns = document.querySelectorAll('.dropdown-options');
+  allDropdowns.forEach(d => d.classList.remove('show'));
+});

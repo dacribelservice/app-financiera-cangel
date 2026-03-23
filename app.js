@@ -16,7 +16,8 @@ import {
 const USE_LOCAL_STORAGE_BACKUP = false; // Feature Flag: Cambiar a true si hay fallos en Supabase
 import { AppState } from './core/store.js';
 export { AppState };
-// --- Navegación (Pendiente de extraer) ---
+// --- Navegación ---
+import { initTabs, switchTab } from './ui/navigation.js';
 import { 
   saveLocal, loadLocal, 
   processSyncQueue, refreshDataFromSupabase 
@@ -35,7 +36,8 @@ import {
   openModalPhysical, closePhysicalModal, savePhysicalInventory, renderInventoryPhysical, deletePhysicalInventory, filterInventoryPhysical,
   openModalPaquete, closeModalPaquete, savePaqueteInventory, renderInventoryPaquetes, deletePaquete, togglePaqueteStatus, filterInventoryPaquetes,
   openModalMembresia, closeModalMembresia, saveMembresiaInventory, renderInventoryMembresias, deleteMembresia, toggleMembresiaStatus, filterInventoryMembresias,
-  selectStatusFilter, getPaqueteSlots, getMembresiaSlots,
+  selectStatusFilter, toggleStatusFilter, toggleDenomFilter, selectDenomFilter, 
+  getPaqueteSlots, getMembresiaSlots,
   isValidDuplicateEmail as ui_isValidDuplicateEmail,
   openModalHistorialVentas, closeModalHistorialVentas, isInventoryLow, handleGameAutocomplete, selectGameSuggestion
 } from './ui/inventory.js';
@@ -130,74 +132,6 @@ export {
 };
 import { sanitizeInventoryDuplicates } from './utils/sanitizer.js';
 /* ============================================================ */
-/* --- Sistema de Autenticación y Sesión movido a ui/auth.js --- */
-/* ============================================================ */
-/* 1.1 MOTOR DE BITÃCORA (AUDIT LOG)       */
-/* ============================================================ */
-/* --- Módulo de Bitácora movido a ui/bitacora.js --- */
-function initTabs() {
-  const tabs = document.querySelectorAll('.browser-tab');
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
-  });
-}
-export function switchTab(tabName) {
-  if (!tabName) return;
-  AppState.activeTab = tabName;
-  // Actualizar Pestañas Superiores
-  document.querySelectorAll('.browser-tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.tab === tabName);
-  });
-  // Mostrar Página
-  document.querySelectorAll('.page-content').forEach(p => {
-    p.classList.remove('active');
-  });
-  const targetPage = document.getElementById(`page${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`);
-  if (targetPage) targetPage.classList.add('active');
-  // Triggers de actualización
-  if (tabName === 'dashboard') updateDashboard();
-  if (tabName === 'analisis') {
-    renderAnalysisTable();
-    // Sync TRM input value
-    const analysisTRM = document.getElementById('analysisExchangeRate');
-    if (analysisTRM) analysisTRM.value = AppState.exchangeRate;
-  }
-  if (tabName === 'catalogo') renderCatalog();
-  if (tabName === 'balance') updateBalance();
-  if (tabName === 'inventario') renderInventory();
-  if (tabName === 'ventas') {
-    if (AppState.ventasMode === 'cuentas') renderCuentasPSN();
-    else renderVentas();
-  }
-  if (tabName === 'bitacora') {
-    renderBitacoraEventos();
-    renderGestionUsuarios();
-  }
-  if (tabName === 'analytics') initAnalytics();
-  if (window.lucide) window.lucide.createIcons();
-}
-
-/* --- Módulo de Análisis e IA movido a ui/analysis.js --- */
-/* ============================================================ */
-/* 4. MÓDULO CATÃLOGO & ECOMMERCE          */
-/* ============================================================ */
-/* --- Módulo de Catálogo & E-commerce movido a ui/catalog.js --- */
-
-
-
-
-/* --- Módulo de Historial de Ventas movido a ui/inventory.js --- */
-/* --- Lógica de Historial movida a ui/inventory.js --- */
-/* ============================================================ */
-/* 6. BALANCE & AUDITORÃA PDF              */
-/* ============================================================ */
-
-let _pagoMetodoChartInstance = null;
-// renderPagoMetodoChart movida a ui/balance.js
-// Función processPDF eliminada (se usa la de ui/balance.js)
-// Funciones de gastos movidas a ui/balance.js
-/* --- Módulo de Balance movido a ui/balance.js --- */
-/* ============================================================ */
 /* ============================================================ */
 /* 7. HELPERS & PERSISTENCIA               */
 /* ============================================================ */
@@ -234,9 +168,6 @@ const btnAddRow = document.getElementById('btnAddRow');
 if (btnAddRow) btnAddRow.addEventListener('click', addEmptyRow);
 const btnAddToCatalog = document.getElementById('btnAddToCatalog');
 if (btnAddToCatalog) btnAddToCatalog.addEventListener('click', addToCatalogFromAnalysis);
-/* --- ALERTS MODULE --- */
-/* --- Helpers movidos a utils/helpers.js o ui/inventory.js --- */
-// --- Fin de funciones movidas a ui/modals.js ---
 // Close dropdown when clicking outside
 document.addEventListener('click', function (e) {
   const dropdown = document.getElementById('denomDropdownContainer');
@@ -259,22 +190,6 @@ document.addEventListener('click', function (e) {
     ventaSuggestions.style.display = 'none';
   }
 });
-/* --- Autocompletado movido a ui/inventory.js --- */
-// --- Fin de funciones movidas a ui/analytics.js ---
-/* --- Sistema de Listas de Clientes movido a ui/clients.js --- */
-/* ============================================================ */
-/* 25. BITÁCORA Y GESTIÓN DE USUARIOS      */
-/* ============================================================ */
-/* --- Módulo de Bitácora (Render & Tabs) movido a ui/bitacora.js --- */
-/* --- Módulo de Gestión de Usuarios y 2FA movido a ui/users.js --- */
-
-/* ============================================================ */
-/* 2FA CODES MANAGEMENT SYSTEM             */
-/* ============================================================ */
-
-/* --- LÓGICA DE NOTIFICACIONES 2FA (POCOS CÓDIGOS) --- */
-
-
 // ================================================
 // BRIDGE GLOBAL (FASE 1.2 - REFORZADO)
 // Exponer funciones críticas al objeto window para 
@@ -372,6 +287,9 @@ const GlobalBridge = {
   toggleMembresiaStatus,
   switchInvMode,
   selectStatusFilter,
+  toggleStatusFilter,
+  toggleDenomFilter,
+  selectDenomFilter,
   openModalXbox,
   closeXboxModal,
   saveXboxInventory,
@@ -401,7 +319,6 @@ const GlobalBridge = {
   renderIngresos,
   eliminarIngreso,
   prepararEdicionIngreso,
-  // Bitácora
   // Bitácora
   logEvent,
   switchBitacoraTab,
@@ -473,6 +390,7 @@ const GlobalBridge = {
   closePremiumPrompt,
   closeDeleteConfirmModal,
   executeDeleteAction,
+  showToast,
   // Auth
   doLogin,
   doLogout,

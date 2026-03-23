@@ -13,7 +13,7 @@ import { sanitizeInventoryDuplicates } from '../utils/sanitizer.js';
  * Fase 7.1: Módulo de Persistencia y Sistema de Sincronización (Core)
  */
 
-const USE_LOCAL_STORAGE_BACKUP = false; // Feature Flag: Cambiar a true si hay fallos en Supabase
+const USE_LOCAL_STORAGE_BACKUP = true; // Habilitado para Shadow Writing y Respaldo de Cola
 
 /**
  * Persiste el estado actual en el almacenamiento local y dispara la sincronización cloud
@@ -174,27 +174,38 @@ export async function processSyncQueue() {
 export async function refreshDataFromSupabase() {
   try {
     const { inventoryGames, settings, totalClients } = await apiFetchInitialData();
-    // Actualizar AppState silenciosamente con los datos más recientes
-    if (inventoryGames && inventoryGames.length > 0) {
-      AppState.inventoryGames = inventoryGames;
-    }
-    if (settings) {
-      if (settings.exchangeRate) AppState.exchangeRate = settings.exchangeRate.value;
-      if (settings.plantillas) AppState.plantillas = settings.plantillas;
+    
+    // Comparación rápida para evitar renders innecesarios
+    const hasInventoryChanges = JSON.stringify(inventoryGames) !== JSON.stringify(AppState.inventoryGames);
+    const hasSettingsChanges = JSON.stringify(settings) !== JSON.stringify({ 
+      exchangeRate: { value: AppState.exchangeRate }, 
+      plantillas: AppState.plantillas 
+    });
+
+    if (hasInventoryChanges || hasSettingsChanges) {
+      console.log("🔄 Datos frescos detectados en Supabase. Actualizando AppState...");
+      
+      if (inventoryGames) AppState.inventoryGames = inventoryGames;
+      if (settings) {
+        if (settings.exchangeRate) AppState.exchangeRate = settings.exchangeRate.value;
+        if (settings.plantillas) AppState.plantillas = settings.plantillas;
+      }
+
+      // Refrescar UI solo si el usuario ya está autenticado y en la pantalla activa
+      if (AppState.currentUser) {
+        if (typeof updateDashboard === 'function') updateDashboard();
+        if (typeof renderCuentasPSN === 'function') renderCuentasPSN();
+        // Disparamos Lucide para asegurar que los iconos de los nuevos datos se creen
+        if (window.lucide) window.lucide.createIcons();
+      }
     }
     
-    // Auditoría Silenciosa (Fase 5.1)
+    // Auditoría Silenciosa (Mantenimiento)
     if (localStorage.getItem('debug_migration') === 'true') {
        const localCount = Object.keys(AppState.clientsListas || {}).length;
-       console.log(`%c[AUDIT] Local: ${localCount} | Supabase (Clients): ${totalClients || 0}`, "color: #39d6f9; font-weight: bold;");
-    }
-
-    // Refrescar UI si el usuario ya está dentro
-    if (AppState.currentUser) {
-      if (typeof updateDashboard === 'function') updateDashboard();
-      if (AppState.activeTab === 'inventario' && typeof renderCuentasPSN === 'function') renderCuentasPSN();
+       console.log(`%c[REFRESH] Local: ${localCount} | Supabase (Clients): ${totalClients || 0}`, "color: #39d6f9;");
     }
   } catch (err) {
-    console.warn("⏳ Falló el refresco asíncrono (usando caché local):", err.message);
+    console.warn("⏳ Falló el refresco asíncrono (revalidación):", err.message);
   }
 }
