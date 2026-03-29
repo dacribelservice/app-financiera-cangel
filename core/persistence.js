@@ -242,3 +242,49 @@ export async function refreshDataFromSupabase() {
     console.warn("⏳ Falló el refresco asíncrono (revalidación):", err.message);
   }
 }
+
+/**
+ * RECONEXIÓN CRÍTICA: Hard Reset del Caché Local
+ * Rompe el "Efecto Espejo" vaciando el localStorage y re-hidratando desde la nube.
+ */
+export async function forceCloudSync() {
+  console.warn("🔄 Iniciando Hard Reset de Sincronización Cloud...");
+  
+  // 1. Vaciar colecciones clave del localStorage
+  const itemsToClear = [
+    'inventoryGames', 'inventoryCodes', 'paquetes', 'membresias', 
+    'sync_queue', 'cangel_erp_v7', 'sales'
+  ];
+  itemsToClear.forEach(item => localStorage.removeItem(item));
+
+  // 2. Reiniciar AppState en memoria
+  AppState.inventoryGames = [];
+  AppState.inventoryCodes = [];
+  AppState.paquetes = [];
+  AppState.membresias = [];
+  AppState.sales = [];
+  AppState.sync_queue = [];
+
+  // 3. Re-hidratar desde Supabase (Verdad Absoluta)
+  try {
+    // Forzamos el fetch inicial
+    await refreshDataFromSupabase();
+    
+    // 4. Guardar el nuevo estado limpio localmente
+    saveLocal();
+    
+    console.log("✅ Hard Reset completado. Los datos locales han sido reemplazados por la nube.");
+    
+    // 5. Actualizar toda la UI
+    if (typeof updateDashboard === 'function') updateDashboard();
+    update2FABellBadge();
+    
+    // Disparar render de inventario si la función existe globalmente
+    if (window.renderInventoryJuegos) window.renderInventoryJuegos();
+    
+    return true;
+  } catch (err) {
+    console.error("❌ Falló la re-hidratación tras Hard Reset:", err);
+    return false;
+  }
+}

@@ -20,7 +20,8 @@ export { AppState };
 import { initTabs, switchTab } from './ui/navigation.js';
 import { 
   saveLocal, loadLocal, 
-  processSyncQueue, refreshDataFromSupabase 
+  processSyncQueue, refreshDataFromSupabase,
+  forceCloudSync 
 } from './core/persistence.js';
 import { 
   storageSave, storageLoad, 
@@ -200,6 +201,36 @@ const GlobalBridge = {
   switchTab,
   doLogin,
   doLogout,
+  forceCloudSync,
+  handleHardReset: function() {
+    showDeleteConfirmModal(
+      "🔄 ¿Deseas realizar una Sincronización Nube?",
+      async () => {
+        try {
+          console.log("🚀 Iniciando Sincronización Forzada...");
+          showToast("Limpiando caché local y descargando de la nube...", "info");
+          
+          const success = await forceCloudSync();
+          
+          if (success) {
+            showToast("Sincronización completa: Los datos locales se han restaurado.", "success");
+            
+            // Recarga agresiva para asegurar que todos los módulos reflejen el cambio
+            setTimeout(() => {
+              location.reload();
+            }, 1500);
+          } else {
+            showToast("Error durante la sincronización forzada.", "error");
+          }
+        } catch (err) {
+          console.error("Critical error in handleHardReset:", err);
+          showToast("Fallo crítico en el reset de datos.", "error");
+        }
+      },
+      "Confirmación de Reset Cloud",
+      "Esta acción vaciará tu almacenamiento local y descargará la 'Verdad Absoluta' directamente de Supabase. ¿Deseas continuar?"
+    );
+  },
   recuperarPassword,
   updateDashboard,
   renderTop5,

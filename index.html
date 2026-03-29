@@ -658,7 +658,12 @@
           </button>
         </div>
         <div class="header-actions" style="display: flex; align-items: center; gap: 15px; margin-left: auto;">
-
+          <!-- Botón de Sincronización Cloud (Hard Reset) -->
+          <button class="action-btn-premium" onclick="handleHardReset()" title="Sincronización Nube (Hard Reset)" 
+            style="width: 36px; height: 36px; border-radius: 50%; background: rgba(57, 214, 249, 0.1) !important; border: 1px solid rgba(57, 214, 249, 0.2) !important; color: var(--accent-cyan) !important; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s ease;">
+            <i data-lucide="refresh-cw" style="width: 18px; height: 18px;"></i>
+          </button>
+          
           <div class="user-badge" id="userBadge" onclick="doLogout()">
             <span id="userBadgeName">Cargando...</span>
             <span class="user-badge-exit">
