@@ -76,7 +76,7 @@ function processExtractionResult(data, url) {
   const analysisItem = {
     id: !isNew ? oldItem.id : Date.now(),
     url: url,
-    image: data.imagen || 'https://via.placeholder.com/150',
+    image: data.imagen || '',
     nombre: data.nombre,
     precioBase: data.precioBase || 0,
     sale: actualSale || 0,
@@ -129,7 +129,8 @@ export function renderGameCard(data, size = 'medium') {
 
   container.innerHTML = `
     <div class="card-premium-ai" style="${cardStyle}">
-      <img src="${data.image_url || 'https://via.placeholder.com/80'}" 
+      <img src="${data.image_url || ''}" 
+           onerror="this.onerror=null; this.style.display='none';"
            style="width:${isXS ? '35px' : (isSmall ? '80px' : '100%')}; height:${isXS ? '35px' : (isSmall ? '80px' : '150px')}; border-radius:8px; object-fit:cover; flex-shrink:0;">
       <div style="flex:1; min-width:0;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -201,7 +202,7 @@ export async function addToCatalogFromAnalysis() {
 export function addEmptyRow() {
   AppState.analysis.unshift({
     id: Date.now(),
-    image: 'https://via.placeholder.com/150',
+    image: '',
     nombre: 'Nuevo Juego',
     precioBase: 0,
     sale: 0,
@@ -265,7 +266,7 @@ export function renderAnalysisTable() {
       <td class="row-number-header">${i + 1}</td>
       <td class="img-cell">
         <div class="analysis-img-container">
-          <img src="${row.image}" width="32" height="32" id="img-analysis-${row.id}">
+          <img src="${row.image}" width="32" height="32" id="img-analysis-${row.id}" onerror="this.onerror=null; this.style.display='none';">
           <button class="btn-edit-img" onclick="editAnalysisImage(${row.id})">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
           </button>

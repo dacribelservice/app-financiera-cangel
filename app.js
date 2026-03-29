@@ -40,11 +40,12 @@ import {
   selectStatusFilter, toggleStatusFilter, toggleDenomFilter, selectDenomFilter, 
   getPaqueteSlots, getMembresiaSlots,
   isValidDuplicateEmail as ui_isValidDuplicateEmail,
-  openModalHistorialVentas, closeModalHistorialVentas, isInventoryLow, handleGameAutocomplete, selectGameSuggestion
+  openModalHistorialVentas, closeModalHistorialVentas, isInventoryLow, handleGameAutocomplete, selectGameSuggestion,
+  filterByConsole
 } from './ui/inventory.js';
 import { 
   renderCatalog, removeFromCatalog, addToCartFromCard, addToCart, toggleCart, renderCart, updateCartBadge,
-  openCheckout, closeCheckout, confirmCheckout
+  openCheckout, closeCheckout, confirmCheckout, filterCatalog
 } from './ui/catalog.js';
 import { 
   renderGestionUsuarios, openModalUsuario, closeModalUsuario, saveUsuario, toggleEstadoUsuario, toggleAllPermissions, updateChecklistFromRole,
@@ -299,6 +300,7 @@ const GlobalBridge = {
   renderInventoryJuegos,
   editGameInventory,
   openModalHistorialVentas,
+  filterByConsole,
   // renderCuentasPSN declarada anteriormente, eliminamos duplicado aquí
   toggleGameStatus,
   deleteGameInventory,
@@ -342,6 +344,7 @@ const GlobalBridge = {
   openCheckout,
   closeCheckout,
   confirmCheckout,
+  filterCatalog,
   // Balance y Gastos
   updateBalance,
   addExpense,
@@ -445,8 +448,10 @@ window.app = GlobalBridge;
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
   window.addEventListener('error', function(e) {
     if (e.target && e.target.tagName === 'IMG') {
-      console.warn('Imagen no encontrada, aplicando placeholder:', e.target.src);
-      e.target.src = 'https://via.placeholder.com/300x150?text=Cangel+Games';
+      // CORTAFUEGOS: Solo intentamos una vez y ocultamos para evitar dependencia externa
+      if (e.target.onerror === null) return; // Evitar disparos múltiples si ya fue procesado
+      e.target.onerror = null;
+      e.target.style.display = 'none';
     }
   }, true);
 }

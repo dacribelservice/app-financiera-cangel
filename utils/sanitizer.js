@@ -31,3 +31,35 @@ export function sanitizeInventoryDuplicates(inventoryArray) {
 
   return sanitizedArray;
 }
+
+/**
+ * Recorre recursivamente un objeto o array y blanquea cualquier propiedad
+ * que contenga URLs de placeholder externas (erradicación de herencia).
+ */
+export function sanitizeLegacyData(data) {
+  if (!data) return data;
+  
+  if (Array.isArray(data)) {
+    return data.map(item => sanitizeLegacyData(item));
+  }
+  
+  if (typeof data === 'object' && data !== null) {
+    const newData = {};
+    for (const key in data) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        let value = data[key];
+        
+        if (typeof value === 'string' && value.includes('placeholder.com')) {
+          newData[key] = "";
+        } else if (typeof value === 'object' && value !== null) {
+          newData[key] = sanitizeLegacyData(value);
+        } else {
+          newData[key] = value;
+        }
+      }
+    }
+    return newData;
+  }
+  
+  return data;
+}

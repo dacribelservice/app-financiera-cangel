@@ -18,7 +18,7 @@ export function renderCatalog() {
     card.className = 'game-card';
     card.innerHTML = `
       <div class="game-img-container">
-        <img src="${game.image}" class="game-img" alt="${game.nombre}">
+        <img src="${game.image}" class="game-img" alt="${game.nombre}" onerror="this.onerror=null; this.style.display='none';">
         ${game.sale < game.precioBase ? '<span class="game-badge">OFERTA</span>' : ''}
       </div>
       <div class="game-info">
@@ -182,4 +182,11 @@ export async function confirmCheckout() {
   toggleCart();
   if (typeof saveLocal === 'function') saveLocal();
   await showPremiumAlert("Venta Exitosa", "¡La compra se ha registrado correctamente!", "success");
+}
+
+/**
+ * Filtra el catálogo por texto de búsqueda
+ */
+export function filterCatalog() {
+  renderCatalog();
 }

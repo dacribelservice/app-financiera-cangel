@@ -319,9 +319,18 @@ export function renderInventoryJuegos() {
   const statusFilterEl = document.getElementById('filterStatus');
   const statusFilter = statusFilterEl ? statusFilterEl.value : 'all';
 
+  const consoleFilter = (AppState._currentConsoleFilter || 'all').toLowerCase();
+
   let games = (AppState.inventoryGames || []).filter(g => {
     const matchesSearch = (g.juego || '').toLowerCase().includes(query) || (g.correo || '').toLowerCase().includes(query);
     if (query !== '' && !matchesSearch) return false;
+    
+    // Filtrado por Consola
+    if (consoleFilter !== 'all') {
+      if (consoleFilter === 'ps4' && !g.es_ps4) return false;
+      if (consoleFilter === 'ps5' && !g.es_ps5) return false;
+    }
+
     if (statusFilter !== 'all' && (g.estado || 'OFF').toUpperCase() !== statusFilter) return false;
     return true;
   });
@@ -1211,3 +1220,31 @@ document.addEventListener('click', () => {
   const allDropdowns = document.querySelectorAll('.dropdown-options');
   allDropdowns.forEach(d => d.classList.remove('show'));
 });
+
+/**
+ * Filtra los juegos del catálogo o inventario por consola
+ * @param {HTMLElement} btn - El botón presionado (con data-console="ps4", "ps5" o "all")
+ */
+export function filterByConsole(btn) {
+  if (!btn) return;
+  
+  // Visual: Actualizar clase activa
+  const container = btn.parentElement;
+  if (container) {
+    container.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  }
+  btn.classList.add('active');
+
+  // Lógica: Guardar el filtro seleccionado
+  const consoleType = btn.getAttribute('data-console') || 'all';
+  AppState._currentConsoleFilter = consoleType;
+
+  // Re-renderizar según el contexto
+  // Si existe el catálogo y está visible, renderizar catálogo
+  if (document.getElementById('pageCatalogo') && !document.getElementById('pageCatalogo').classList.contains('hidden')) {
+    if (typeof window.renderCatalog === 'function') window.renderCatalog();
+  } else {
+    // Si no, renderizar inventario
+    renderInventoryJuegos();
+  }
+}

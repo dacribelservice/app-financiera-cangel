@@ -7,7 +7,7 @@ import {
 import { update2FABellBadge } from '../ui/users.js';
 import { updateDashboard } from '../ui/dashboard.js';
 
-import { sanitizeInventoryDuplicates } from '../utils/sanitizer.js';
+import { sanitizeInventoryDuplicates, sanitizeLegacyData } from '../utils/sanitizer.js';
 
 /**
  * Fase 7.1: Módulo de Persistencia y Sistema de Sincronización (Core)
@@ -75,11 +75,10 @@ export function loadLocal() {
     });
 
     AppState.auditLog = data.auditLog || [];
-    AppState.catalog = data.catalog || [];
+    AppState.catalog = sanitizeLegacyData(data.catalog || []);
     
     // Fase 4.2: Freno a la carga masiva
-    // Solo cargamos las últimas 1000 ventas para mantener agilidad en memoria
-    AppState.sales = (data.sales || []).slice(-1000);
+    AppState.sales = sanitizeLegacyData((data.sales || []).slice(-1000));
     
     // Add _searchIndex to loaded sales
     AppState.sales.forEach(v => {
@@ -88,15 +87,15 @@ export function loadLocal() {
       }
     });
 
-    AppState.inventoryGames = sanitizeInventoryDuplicates(data.inventoryGames || []);
+    AppState.inventoryGames = sanitizeLegacyData(sanitizeInventoryDuplicates(data.inventoryGames || []));
     storageSave(AppState); // Forzar guardado limpio permanentemente
     
     AppState.inventoryCodes = data.inventoryCodes || [];
-    AppState.paquetes = data.paquetes || [];
-    AppState.membresias = data.membresias || [];
+    AppState.paquetes = sanitizeLegacyData(data.paquetes || []);
+    AppState.membresias = sanitizeLegacyData(data.membresias || []);
     AppState.expenses = data.expenses || [];
     AppState.incomeExtra = data.incomeExtra || [];
-    AppState.analysis = data.analysis || [];
+    AppState.analysis = sanitizeLegacyData(data.analysis || []);
     AppState.idealStock = data.idealStock || {};
     AppState.clientsListas = data.clientsListas || {};
     AppState.listas = data.listas || [];
@@ -145,9 +144,9 @@ export function loadLocal() {
    * Corrector de imágenes rotas (PlayStation Store Legacy)
    */
   function fixImageUrl(url) {
-    if (!url) return "https://via.placeholder.com/300x150?text=Cangel+Games";
+    if (!url) return "";
     if (url.includes("image.api.playstation.com") && (url.includes("/vulcan/") || url.includes("/rnd/"))) {
-      return "https://via.placeholder.com/300x150?text=PS+STORE+GAME";
+      return "";
     }
     return url;
   }
@@ -201,19 +200,19 @@ export async function refreshDataFromSupabase() {
     if (hasInventoryChanges || hasSettingsChanges) {
       console.log("🔄 Datos frescos detectados en Supabase. Aplicando Revalidación...");
       
-      // REEMPLAZO TOTAL (Deduplicación Estricta)
+      // REEMPLAZO TOTAL (Deduplicación Estricta + Saneamiento de Herencia)
       if (inventoryGames) {
-        AppState.inventoryGames = sanitizeInventoryDuplicates(inventoryGames);
+        AppState.inventoryGames = sanitizeLegacyData(sanitizeInventoryDuplicates(inventoryGames));
       }
       
       // También refrescar ventas recientes (si el servidor las provee)
       if (recentSales && recentSales.length > 0) {
-        AppState.sales = recentSales;
+        AppState.sales = sanitizeLegacyData(recentSales);
       }
 
       if (settings) {
         if (settings.exchangeRate) AppState.exchangeRate = settings.exchangeRate.value;
-        if (settings.plantillas) AppState.plantillas = settings.plantillas;
+        if (settings.plantillas) AppState.plantillas = sanitizeLegacyData(settings.plantillas);
       }
 
       // Refrescar UI solo si el usuario ya está autenticado y en la pantalla activa
