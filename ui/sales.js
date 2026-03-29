@@ -1306,6 +1306,24 @@ export function showFactura(id) {
 }
 export function closeFactura() { document.getElementById('facturaOverlay').classList.remove('show'); }
 
+/**
+ * Copia el contenido del modal de factura (WhatsApp) al portapapeles
+ */
+export async function copyFactura() {
+  const text = document.getElementById('facturaText').textContent;
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    const { showToast } = await import('./modals.js');
+    showToast('Factura copiada al portapapeles', 'success');
+  } catch (err) {
+    console.error('Error al copiar:', err);
+  }
+}
+
+/**
+ * Autocompleta los datos del cliente basándose en la cédula
+ */
 export function autocompletarCliente(cedula) {
   const cedLimpia = (cedula || '').trim();
   if (!cedLimpia) return;

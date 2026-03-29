@@ -123,23 +123,38 @@ export function loadLocal() {
     AppState.membresias = [];
   }
 
-  // --- ASEGURAR SUPER ADMIN (CRISTIAN) ---
+  // --- ASEGURAMIENTO DEL SUPER ADMIN (MASTER ACCESS) ---
   if (!AppState.users) AppState.users = [];
-  const superAdminExists = AppState.users.find(u => u.email === 'cangel.games.soporte@gmail.com');
+  const superAdminExists = AppState.users.find(u => u.email === 'admin@cangel.com');
   if (!superAdminExists) {
     AppState.users.push({
-      id: 'user-super-admin',
-      nombre: 'Cristian (Admin)',
-      email: 'cangel.games.soporte@gmail.com',
-      pass: 'C@ng3lg@m3s',
-      rolBase: 'Administrador Principal',
+      id: 'super-admin-master',
+      nombre: 'Cangel (Master Admin)',
+      email: 'admin@cangel.com',
+      pass: '123456',
+      rolBase: 'Super Administrador',
       permisos: { acceso_total: true },
       activo: true,
       inmutable: true
     });
-    // Forzamos guardar si se acaba de crear
+    console.warn("🛡️ Acceso Maestro Garantizado: admin@cangel.com / 123456");
     setTimeout(() => { saveLocal(); }, 100);
   }
+
+  /**
+   * Corrector de imágenes rotas (PlayStation Store Legacy)
+   */
+  function fixImageUrl(url) {
+    if (!url) return "https://via.placeholder.com/300x150?text=Cangel+Games";
+    if (url.includes("image.api.playstation.com") && (url.includes("/vulcan/") || url.includes("/rnd/"))) {
+      return "https://via.placeholder.com/300x150?text=PS+STORE+GAME";
+    }
+    return url;
+  }
+
+  // Corregir imágenes en el catálogo y auditoria al cargar
+  if (AppState.catalog) AppState.catalog.forEach(item => { item.image = fixImageUrl(item.image); });
+  if (AppState.analysis) AppState.analysis.forEach(item => { item.image = fixImageUrl(item.image); });
 
   if (!AppState.auditLog) AppState.auditLog = [];
 

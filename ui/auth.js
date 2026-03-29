@@ -12,12 +12,18 @@ import { showPremiumAlert } from './modals.js';
  * Procesa el inicio de sesión del usuario
  */
 export function doLogin() {
-  const email = document.getElementById('loginName').value.trim().toLowerCase();
-  const pass = document.getElementById('loginPass').value;
+  const emailInput = document.getElementById('loginName');
+  const passInput = document.getElementById('loginPass');
+  const email = emailInput.value.trim().toLowerCase();
+  const pass = passInput.value;
   const remember = document.getElementById('rememberMe').checked;
+
+  console.log('--- INTENTO DE LOGIN ---');
+  console.log('Email:', email);
 
   if (!email || !pass) {
     document.getElementById('loginError').textContent = 'Ingresa correo y contraseña.';
+    import('./modals.js').then(m => m.showToast('Ingresa correo y contraseña', 'error'));
     return;
   }
 
@@ -48,6 +54,8 @@ export function doLogin() {
     saveLocal();
   } else {
     document.getElementById('loginError').textContent = 'Correo o contraseña incorrectos, o usuario inactivo.';
+    console.error('Login Fallido para:', email);
+    import('./modals.js').then(m => m.showToast('Credenciales inválidas o usuario inactivo', 'error'));
   }
 }
 
@@ -129,7 +137,7 @@ export function applyPermissions() {
   // Botón de Limpieza (Solo Super Admin)
   const btnLimpiar = document.getElementById('btnLimpiarDatos');
   if (btnLimpiar) {
-    btnLimpiar.style.display = (user.email === 'cangel.games.soporte@gmail.com') ? 'flex' : 'none';
+    btnLimpiar.style.display = (user.email === 'admin@cangel.com') ? 'flex' : 'none';
   }
 }
 

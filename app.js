@@ -69,7 +69,7 @@ import {
   addVentaCodigoRow, removeVentaCodigoRow,
   stepCodigo, updateCodigoRowMax,
   saveVenta as saveVentaDataForm, deleteVenta,
-  showFactura, closeFactura,
+  showFactura, closeFactura, copyFactura,
   autocompletarCliente,
   openModalPlantillas, closeModalPlantillas, cargarPlantillaSeleccionada,
   actualizarPanelVariables, guardarPlantilla, insertarVariable,
@@ -237,6 +237,8 @@ const GlobalBridge = {
   verDetallesVenta,
   showFactura,
   closeFactura,
+  copyFactura,
+  autocompletarCliente,
   handleVentaGameAutocomplete,
   selectVentaGameSuggestion,
   handleVentaPaqueteAutocomplete,
@@ -407,4 +409,13 @@ Object.keys(GlobalBridge).forEach(key => {
 });
 // También exponer el objeto 'app' por si se usa esa nomenclatura
 window.app = GlobalBridge;
+
+// --- Gestor Global de Errores de Imagen ---
+window.addEventListener('error', function(e) {
+  if (e.target.tagName === 'IMG') {
+    console.warn('Imagen no encontrada, aplicando placeholder:', e.target.src);
+    e.target.src = 'https://via.placeholder.com/300x150?text=Cangel+Games';
+  }
+}, true);
+
 export default GlobalBridge;

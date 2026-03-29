@@ -5,7 +5,7 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Configuración Supabase (ADMIN PRIVILEGES)
 const supabaseUrl = process.env.SUPABASE_URL;
