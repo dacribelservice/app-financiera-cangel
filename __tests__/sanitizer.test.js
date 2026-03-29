@@ -22,6 +22,18 @@ describe('utils/sanitizer.js - sanitizeInventoryDuplicates', () => {
     expect(sanitizeInventoryDuplicates({})).toEqual([]);
   });
 
+  it('debería eliminar duplicados basándose en el correo aunque el ID sea distinto', () => {
+    const input = [
+      { id: 1001, correo: 'test@cangel.com', name: 'Original' },
+      { id: 1002, correo: 'test@cangel.com', name: 'Duplicado' },
+    ];
+    
+    const result = sanitizeInventoryDuplicates(input);
+    
+    expect(result.length).toBe(1);
+    expect(result[0].name).toBe('Duplicado');
+  });
+
   it('no debería afectar arrays sin duplicados', () => {
     const input = [{ id: '1' }, { id: '2' }];
     expect(sanitizeInventoryDuplicates(input).length).toBe(2);

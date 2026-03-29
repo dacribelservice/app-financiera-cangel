@@ -6,7 +6,7 @@ import {
 } from '../services/api.js';
 import { update2FABellBadge } from '../ui/users.js';
 import { updateDashboard } from '../ui/dashboard.js';
-import { renderCuentasPSN } from '../ui/sales.js';
+
 import { sanitizeInventoryDuplicates } from '../utils/sanitizer.js';
 
 /**
@@ -188,7 +188,8 @@ export async function processSyncQueue() {
  */
 export async function refreshDataFromSupabase() {
   try {
-    const { inventoryGames, settings, totalClients } = await apiFetchInitialData();
+    const data = await apiFetchInitialData();
+    const { inventoryGames, settings, recentSales } = data;
     
     // Comparación rápida para evitar renders innecesarios
     const hasInventoryChanges = JSON.stringify(inventoryGames) !== JSON.stringify(AppState.inventoryGames);
@@ -198,9 +199,18 @@ export async function refreshDataFromSupabase() {
     });
 
     if (hasInventoryChanges || hasSettingsChanges) {
-      console.log("🔄 Datos frescos detectados en Supabase. Actualizando AppState...");
+      console.log("🔄 Datos frescos detectados en Supabase. Aplicando Revalidación...");
       
-      if (inventoryGames) AppState.inventoryGames = inventoryGames;
+      // REEMPLAZO TOTAL (Deduplicación Estricta)
+      if (inventoryGames) {
+        AppState.inventoryGames = sanitizeInventoryDuplicates(inventoryGames);
+      }
+      
+      // También refrescar ventas recientes (si el servidor las provee)
+      if (recentSales && recentSales.length > 0) {
+        AppState.sales = recentSales;
+      }
+
       if (settings) {
         if (settings.exchangeRate) AppState.exchangeRate = settings.exchangeRate.value;
         if (settings.plantillas) AppState.plantillas = settings.plantillas;
@@ -209,7 +219,15 @@ export async function refreshDataFromSupabase() {
       // Refrescar UI solo si el usuario ya está autenticado y en la pantalla activa
       if (AppState.currentUser) {
         if (typeof updateDashboard === 'function') updateDashboard();
-        if (typeof renderCuentasPSN === 'function') renderCuentasPSN();
+        
+        // Importación dinámica para romper dependencia circular con ui/sales.js
+        try {
+          const { renderCuentasPSN: dynamicRenderCuentasPSN } = await import('../ui/sales.js');
+          if (typeof dynamicRenderCuentasPSN === 'function') dynamicRenderCuentasPSN();
+        } catch (e) {
+          console.error("Error al cargar dinámicamente renderCuentasPSN:", e);
+        }
+
         // Disparamos Lucide para asegurar que los iconos de los nuevos datos se creen
         if (window.lucide) window.lucide.createIcons();
       }

@@ -411,11 +411,13 @@ Object.keys(GlobalBridge).forEach(key => {
 window.app = GlobalBridge;
 
 // --- Gestor Global de Errores de Imagen ---
-window.addEventListener('error', function(e) {
-  if (e.target.tagName === 'IMG') {
-    console.warn('Imagen no encontrada, aplicando placeholder:', e.target.src);
-    e.target.src = 'https://via.placeholder.com/300x150?text=Cangel+Games';
-  }
-}, true);
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('error', function(e) {
+    if (e.target && e.target.tagName === 'IMG') {
+      console.warn('Imagen no encontrada, aplicando placeholder:', e.target.src);
+      e.target.src = 'https://via.placeholder.com/300x150?text=Cangel+Games';
+    }
+  }, true);
+}
 
 export default GlobalBridge;

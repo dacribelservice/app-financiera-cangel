@@ -8,11 +8,11 @@ Este documento detalla los pasos críticos para el despliegue exitoso en Vercel,
 - [x] Reparar rutas de importación en Autocomplete de Ventas (`selectVentaGameSuggestion`, etc.).
 - [x] Exponer modales de UI (`showToast`, `closePremiumAlert`, etc.) en el GlobalBridge.
 - [x] Implementar Middleware de Seguridad (API Key) en `server.js`.
-- [ ] Implementar validación básica de entrada en endpoints de backend.
+- [x] Implementar validación básica de entrada en endpoints de backend.
 
 ## 🟡 FASE 2: CONFIGURACIÓN VERCEL
-- [ ] Crear archivo `vercel.json` con enrutamiento Serverless.
-- [ ] Ajustar `server.js` para compatibilidad con Vercel Functions.
+- [x] Crear archivo `vercel.json` con enrutamiento Serverless.
+- [x] Ajustar `server.js` para compatibilidad con Vercel Functions.
 - [ ] Verificar rutas relativas de carga de módulos en producción.
 - [ ] Limpiar archivos innecesarios de la raíz del proyecto.
 
@@ -23,4 +23,4 @@ Este documento detalla los pasos críticos para el despliegue exitoso en Vercel,
 - [ ] Cierre oficial de versión v13.1.
 
 ---
-**Estado Actual**: Saneamiento de UI en progreso...
+**Estado Actual**: Fase 1 COMPLETADA. Listo para configuración de Vercel (Fase 2).

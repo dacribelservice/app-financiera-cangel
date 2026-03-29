@@ -99,6 +99,50 @@ export async function apiProcessSyncQueue() {
 }
 
 /**
+ * 3. BORRADO FÍSICO (ERRADICACIÓN DE ZOMBIS)
+ */
+export async function apiDeleteGame(id) {
+  try {
+    const response = await fetch(`http://localhost:3000/api/inventory/${id}`, {
+      method: 'DELETE',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-api-key': 'CANGEL_DEV_KEY_123'
+      }
+    });
+
+    if (!response.ok) throw new Error('Error al borrar juego físicamente');
+    console.log(`✅ Juego ${id} eliminado física y permanentemente en Supabase.`);
+    return { success: true };
+  } catch (err) {
+    console.error(`❌ Fallo el borrado cloud para ID ${id}:`, err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Limpia cualquier referencia a un ID específico en la cola de sincronización.
+ * Previene que una resurrección ocurra si había una sincronización pendiente antes del borrado.
+ */
+export function clearFromSyncQueue(gameId) {
+  const queue = localStorage.getItem('sync_queue');
+  if (!queue) return;
+  try {
+    let syncData = JSON.parse(queue);
+    if (syncData.inventoryGames) {
+      const originalCount = syncData.inventoryGames.length;
+      syncData.inventoryGames = syncData.inventoryGames.filter(g => String(g.id) !== String(gameId));
+      if (syncData.inventoryGames.length !== originalCount) {
+        localStorage.setItem('sync_queue', JSON.stringify(syncData));
+        console.log(`🧹 sync_queue sanitizada: Juego ${gameId} eliminado de la cola pendiente.`);
+      }
+    }
+  } catch (e) {
+    console.warn("Error al sanitizar sync_queue:", e);
+  }
+}
+
+/**
  * MICRO-PARCHE: HARD RESET CLOUD
  * Función asíncrona para iniciar el borrado masivo en el servidor.
  */

@@ -21,6 +21,7 @@ import { updateDashboard } from './dashboard.js';
 import { update2FABellBadge } from './users.js';
 import { showDeleteConfirmModal, showToast } from './modals.js';
 import { renderCuentasPSN } from './sales.js';
+import { apiDeleteGame, clearFromSyncQueue } from '../services/api.js';
 
 // --- FUNCIONES DE SOPORTE (SLOTS) ---
 
@@ -268,15 +269,26 @@ export function saveGameInventory() {
 }
 
 export function deleteGameInventory(id) {
-  showDeleteConfirmModal("¿Estás seguro de que deseas eliminar permanentemente este juego del inventario?", () => {
+  showDeleteConfirmModal("¿Estás seguro de que deseas eliminar permanentemente este juego del inventario?", async () => {
     const gameToDelete = AppState.inventoryGames.find(g => g.id === id);
     if (gameToDelete) logEvent('Inventario Juegos: Eliminado', `ID: ${id} | Juego: ${gameToDelete.juego}`);
+    
+    // 1. Eliminar del estado local
     AppState.inventoryGames = AppState.inventoryGames.filter(g => g.id !== id);
+    
+    // 2. Sanitizar sync_queue (Evitar resurrección offline)
+    clearFromSyncQueue(id);
+    
+    // 3. Guardar cambios en el almacenamiento local
     saveLocal();
+    
+    // 4. Borrado Atómico en la Nube (Supabase)
+    await apiDeleteGame(id);
+    
     renderInventoryJuegos();
     isInventoryLow();
     calculateBalances();
-    showToast("Juego eliminado del inventario", "info");
+    showToast("Juego eliminado física y permanentemente", "info");
   });
 }
 
@@ -316,7 +328,11 @@ export function renderInventoryJuegos() {
 
   games.sort((a, b) => (b.fecha ? new Date(b.fecha) : 0) - (a.fecha ? new Date(a.fecha) : 0));
 
-  tbody.innerHTML = games.length ? '' : '<tr><td colspan="15" style="text-align:center; color: var(--text-muted); padding: 30px;">No hay juegos registrados.</td></tr>';
+  tbody.innerHTML = '';
+  if (!games.length) {
+    tbody.innerHTML = '<tr><td colspan="15" style="text-align:center; color: var(--text-muted); padding: 30px;">No hay juegos registrados.</td></tr>';
+    return;
+  }
   
   games.forEach((g, idx) => {
     const tr = document.createElement('tr');
@@ -424,7 +440,11 @@ export function renderInventoryCodigos() {
   const tbody = document.getElementById('invCodigosBody');
   if (!tbody) return;
   const codes = (AppState.inventoryCodes || []).filter(c => c.estado === 'ON');
-  tbody.innerHTML = codes.length ? '' : '<tr><td colspan="6" style="text-align:center;">Sin códigos en stock.</td></tr>';
+  tbody.innerHTML = '';
+  if (!codes.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Sin códigos en stock.</td></tr>';
+    return;
+  }
   codes.forEach((c, idx) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `

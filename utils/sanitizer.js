@@ -10,10 +10,14 @@ export function sanitizeInventoryDuplicates(inventoryArray) {
   const uniqueMap = new Map();
   
   inventoryArray.forEach(item => {
-    if (item && item.id) {
-      // Usamos el ID como llave. Si se repite, el Map sobreescribe con el último encontrado (o conservamos el primero si validamos).
-      // El usuario pidió "conservando solo la primera o última versión válida". 
-      // Usar set() sobre un Map sobrescribe, por lo que conservaremos la ÚLTIMA versión encontrada en el array original.
+    // Para Juegos, la clave de unicidad absoluta debe ser el CORREO. 
+    // Los IDs generados por Date.now() pueden fallar si hay colisiones o re-creaciones rápidas.
+    if (item && item.correo) {
+      const uniqueKey = item.correo.trim().toLowerCase();
+      // Si el correo ya existía, conservamos el más nuevo (el que llega después en el array)
+      uniqueMap.set(uniqueKey, item);
+    } else if (item && item.id) {
+      // Fallback para otros tipos de inventario que no tengan correo
       uniqueMap.set(String(item.id), item);
     }
   });
@@ -22,7 +26,7 @@ export function sanitizeInventoryDuplicates(inventoryArray) {
   const newSize = sanitizedArray.length;
   
   if (originalSize !== newSize) {
-    console.warn(`🧹 Sanitización completada. Arreglo reducido de ${originalSize} a ${newSize} juegos.`);
+    console.warn(`🧹 Sanitización completada. Arreglo reducido de ${originalSize} a ${newSize} juegos (basado en correo/ID).`);
   }
 
   return sanitizedArray;

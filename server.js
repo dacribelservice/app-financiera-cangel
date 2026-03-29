@@ -38,6 +38,20 @@ const requireApiKey = (req, res, next) => {
 // Aplicar el escudo a todos los endpoints que comiencen con /api
 app.use('/api', requireApiKey);
 
+/**
+ * Middleware para validar que el payload de sincronización sea correcto y no esté vacío.
+ */
+const validateSyncPayload = (req, res, next) => {
+    if (!req.body || typeof req.body !== 'object' || Object.keys(req.body).length === 0) {
+        console.warn(`[⚠️ VALIDACIÓN] Payload corrupto o vacío recibido desde IP: ${req.ip}`);
+        return res.status(400).json({ 
+            error: 'Payload inválido', 
+            message: 'El cuerpo de la sincronización debe ser un objeto JSON válido y no estar vacío.' 
+        });
+    }
+    next();
+};
+
 // --- UTILIDADES ---
 function formatDateToISO(dateStr) {
     if (!dateStr) return new Date().toISOString().split('T')[0];
@@ -67,10 +81,41 @@ function formatDateToISO(dateStr) {
 // --- API ENDPOINTS ---
 
 /**
+ * ERRADICACIÓN DE ZOMBIS: Endpoint de Borrado Atómico
+ * Elimina físicamente un juego del inventario en Supabase.
+ */
+app.delete('/api/inventory/:id', async (req, res) => {
+    const { id } = req.params;
+    
+    if (!id) {
+        return res.status(400).json({ error: 'ID de juego requerido' });
+    }
+
+    try {
+        console.log(`[🗑️ DELETE] Intentando borrar juego ID: ${id}`);
+        const { error, count } = await supabase
+            .from('inventory_games')
+            .delete()
+            .eq('local_id', String(id));
+
+        if (error) throw error;
+
+        res.json({ 
+            success: true, 
+            message: `Juego con local_id ${id} eliminado física y permanentemente.`,
+            deletedCount: count 
+        });
+    } catch (error) {
+        console.error(`[❌ ERROR DELETE] Fallo al borrar juego ${id}:`, error);
+        res.status(500).json({ error: 'Error interno al procesar el borrado en Supabase', details: error.message });
+    }
+});
+
+/**
  * Fase 2.2: Endpoint de Sincronización (Shadowing Migration)
  * Recibe el AppState y persiste datos de forma atómica.
  */
-app.post('/api/sync', async (req, res) => {
+app.post('/api/sync', validateSyncPayload, async (req, res) => {
     const { clients, sales, inventoryGames, exchangeRate, plantillas } = req.body;
     const syncResults = { clients: 'skipped', sales: 'skipped', inventory: 'skipped', settings: 'skipped' };
 
@@ -294,7 +339,13 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, () => {
-    console.log(`✅ Cangel ERP V13.0 Server running at http://localhost:${PORT}`);
-    console.log(`🚀 Supabase Integration Active`);
-});
+// Arranque condicional para desarrollo local (evitar bloqueo en Vercel)
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`✅ Cangel ERP V13.0 Server running at http://localhost:${PORT}`);
+        console.log(`🚀 Supabase Integration Active`);
+    });
+}
+
+// Exportar para Vercel Serverless Functions
+module.exports = app;
